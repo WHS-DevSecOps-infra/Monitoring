@@ -1,0 +1,129 @@
+# name: Monitoring CI
+
+# on:
+#   pull_request:
+#     branches: [main]
+#   push:
+#     branches: [main]
+# env:
+#   ACTIONS_STEP_DEBUG: true
+
+# permissions:
+#   contents: read
+#   id-token: write
+
+# jobs:
+#   terraform-ci:
+#     name: Terraform Plan for Monitoring Infra
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#       - name: Checkout Code
+#         uses: actions/checkout@v3
+
+#       - name: Configure AWS Credentials via OIDC
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-region: ap-northeast-2
+#           role-to-assume: arn:aws:iam::502676416967:role/monitoring-role
+          
+#       - name: Run tfsec
+#         uses: aquasecurity/tfsec-action@v1.0.0
+
+
+#       - uses: hashicorp/setup-terraform@v1
+#         with:
+#           terraform_version: 1.4.0
+
+#       - run: terraform init
+#       - run: terraform fmt -check
+#       - run: terraform validate
+#       - run: terraform plan
+
+#       - name: Run trivy
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           scan-type: config
+#           hide-progress: true
+
+name: Monitoring CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  ACTIONS_STEP_DEBUG: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-ci:
+    name: Terraform Plan with Security and Cost Estimation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: arn:aws:iam::502676416967:role/monitoring-role
+
+      - name: Run tfsec (Terraform Security Check)
+        uses: aquasecurity/tfsec-action@v1.0.0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan.binary
+
+      - name: Convert Plan to JSON
+        run: terraform show -json tfplan.binary > plan.json
+
+      - name: Run Trivy Config Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          hide-progress: true
+          scan-ref: .
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v2
+
+      - name: Generate Infracost Breakdown
+        run: infracost breakdown --path=plan.json --format=json --out-file=/tmp/infracost.json
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+      # - name: Infracost Comment on Pull Request
+      #   uses: infracost/actions@v1
+      #   with:
+      #     path: /tmp/infracost.json
+      #     behavior: update
+      #   if: github.event_name == 'pull_request'
+      #   env:
+      #     INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+
+

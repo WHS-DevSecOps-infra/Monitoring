@@ -1,0 +1,26 @@
+name: Monitoring CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-cd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: arn:aws:iam::433331841346:role/Monitoring-role
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.0
+
+      - run: terraform init
+      - run: terraform apply -auto-approve
