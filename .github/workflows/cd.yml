@@ -1,0 +1,126 @@
+name: Terraform Plan and Apply
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'operation-team-account/**'
+      - 'identity-team-account/**'
+      - 'prod-team-account/**'
+  push:
+    branches:
+      - main  # PR이 main에 merge되었을 때만 apply 실행
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Fetch origin/main
+        run: git fetch origin main
+
+      - name: Detect Changed Folder
+        id: detect
+        run: |
+          FILES=$(git diff --name-only origin/main ${{ github.sha }})
+          echo "Changed files:"
+          echo "$FILES"
+
+          if echo "$FILES" | grep -q '^operation-team-account/'; then
+            echo "account=OPERATION" >> $GITHUB_OUTPUT
+            echo "work_dir=operation-team-account" >> $GITHUB_OUTPUT
+          elif echo "$FILES" | grep -q '^identity-team-account/'; then
+            echo "account=IDENTITY" >> $GITHUB_OUTPUT
+            echo "work_dir=identity-team-account" >> $GITHUB_OUTPUT
+          elif echo "$FILES" | grep -q '^prod-team-account/'; then
+            echo "account=PROD" >> $GITHUB_OUTPUT
+            echo "work_dir=prod-team-account" >> $GITHUB_OUTPUT
+          else
+            echo "No matching folder changed."
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.detect.outputs.account)] }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.0
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ steps.detect.outputs.work_dir }}
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color > plan_output.txt
+          cat plan_output.txt
+
+        working-directory: ${{ steps.detect.outputs.work_dir }}
+        continue-on-error: true
+      
+
+  terraform-apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' == true
+    runs-on: ubuntu-latest
+    needs: terraform-plan  # terraform-plan 작업이 완료된 후에 실행
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Fetch origin/main
+        run: git fetch origin main
+
+      - name: Detect Changed Folder
+        id: detect
+        run: |
+          FILES=$(git diff --name-only origin/main ${{ github.sha }})
+          echo "Changed files:"
+          echo "$FILES"
+
+          if echo "$FILES" | grep -q '^operation-team-account/'; then
+            echo "account=OPERATION" >> $GITHUB_OUTPUT
+            echo "work_dir=operation-team-account" >> $GITHUB_OUTPUT
+          elif echo "$FILES" | grep -q '^identity-team-account/'; then
+            echo "account=IDENTITY" >> $GITHUB_OUTPUT
+            echo "work_dir=identity-team-account" >> $GITHUB_OUTPUT
+          elif echo "$FILES" | grep -q '^prod-team-account/'; then
+            echo "account=PROD" >> $GITHUB_OUTPUT
+            echo "work_dir=prod-team-account" >> $GITHUB_OUTPUT
+          else
+            echo "No matching folder changed."
+            exit 1
+          fi
+
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.detect.outputs.account)] }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.0
+
+      - name: Terraform InitS
+        run: terraform init
+        working-directory: ${{ steps.detect.outputs.work_dir }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: ${{ steps.detect.outputs.work_dir }}
