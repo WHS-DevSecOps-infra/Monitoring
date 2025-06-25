@@ -54,12 +54,11 @@ jobs:
           role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.detect.outputs.account)] }}
 
       # 5. tfsec : high 이상일 경우에만 실패
-      - name: Run tfsec
+      - name: Run tfsec (fail only on HIGH and above)
         if: steps.detect.outputs.skip != 'true'
-        uses: aquasecurity/tfsec-action@v1.0.0
-        with:
-          working-directory: ${{ steps.detect.outputs.work_dir }}
-          additional-args: "--minimum-severity high"
+        run: |
+          tfsec --minimum-severity HIGH --no-color ${{ steps.detect.outputs.work_dir }}
+
       # 6. Terraform 설정
       - name: Setup Terraform
         if: steps.detect.outputs.skip != 'true'
