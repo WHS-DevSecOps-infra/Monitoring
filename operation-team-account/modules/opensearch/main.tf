@@ -1,8 +1,8 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_opensearch_domain" "siem" {
-  domain_name     = "siem-domain"
-  engine_version  = "OpenSearch_2.9"
+  domain_name    = "siem-domain"
+  engine_version = "OpenSearch_2.9"
 
   cluster_config {
     instance_type  = "t3.small.search"
@@ -27,18 +27,18 @@ resource "aws_opensearch_domain" "siem" {
     enabled = true
   }
 
-    access_policies = jsonencode({
+  access_policies = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
+        Effect = "Allow"
         Principal = {
           AWS = [
             "arn:aws:sts::${data.aws_caller_identity.current.account_id}:assumed-role/${var.sso_role_name}/${var.sso_user_name}",
             var.firehose_role_arn,
           ]
         }
-        Action   = "es:*"
+        Action = "es:*"
         # 도메인 및 그 하위 인덱스·도큐먼트 전체 리소스
         Resource = [
           aws_opensearch_domain.siem.arn,

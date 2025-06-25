@@ -1,14 +1,14 @@
 resource "aws_cloudwatch_log_subscription_filter" "logs_to_firehose" {
   name            = var.subscription_filter_name
   log_group_name  = var.log_group_name
-  filter_pattern  = "{ $.level = \"ERROR\" }"   # ERROR 레벨만 전달
+  filter_pattern  = "{ $.level = \"ERROR\" }" # ERROR 레벨만 전달
   destination_arn = var.firehose_arn
   role_arn        = var.role_arn
 }
 
 resource "aws_cloudwatch_log_group" "target" {
   name              = var.log_group_name
-  retention_in_days = 14   # 14일 지나면 자동 삭제
+  retention_in_days = 14 # 14일 지나면 자동 삭제
 }
 
 resource "aws_cloudwatch_metric_filter" "error_count" {

@@ -31,11 +31,11 @@ resource "aws_securitylake_data_lake" "this" {
 
     lifecycle_configuration {
       expiration {
-        days = 30        # 데이터 30일 보관
+        days = 30 # 데이터 30일 보관
       }
       transition {
         days          = 7
-        storage_class = "ONEZONE_IA"  # 7일 후 저비용 스토리지로 전환
+        storage_class = "ONEZONE_IA" # 7일 후 저비용 스토리지로 전환
       }
     }
   }
