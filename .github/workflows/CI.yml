@@ -52,6 +52,11 @@ jobs:
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.detect.outputs.account)] }}
+      # 5. tfsec 설치
+      - name: Install tfsec
+        if: steps.detect.outputs.skip != 'true'
+        run: |
+          curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
       # 5. tfsec : high 이상일 경우에만 실패
       - name: Run tfsec (fail only on HIGH and above)
