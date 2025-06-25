@@ -27,7 +27,7 @@ resource "aws_iam_role_policy" "firehose_policy" {
         Effect   = "Allow"
         Action   = [
           "es:DescribeElasticsearchDomain",
-          "es:DescribeElasticsearchDomains",
+          "es:DescribeElasticsearchDomains", # Note: 이 액션은 리소스 지정이 불가능하여 "*" 사용 필요
           "es:DescribeElasticsearchDomainConfig",
           "es:ESHttpPost",
           "es:ESHttpPut",
