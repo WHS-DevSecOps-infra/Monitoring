@@ -82,16 +82,3 @@ resource "aws_kinesis_firehose_delivery_stream" "to_opensearch" {
     }
   }
 }
-# S3 버킷에 Lifecycle 정책 붙이기
-resource "aws_s3_bucket_lifecycle_configuration" "firehose_backup" {
-  bucket = aws_s3_bucket.firehose_backup.id
-
-  rule {
-    id     = "ExpireBackup"
-    status = "Enabled"
-
-    filter { prefix = "backup/" }
-
-    expiration { days = 7 }     # 7일 지난 백업은 자동 삭제
-  }
-}
