@@ -1,0 +1,48 @@
+# .github/workflows/terraform-apply.yml
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Changed Dir Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: changed-dir
+
+      - name: Read changed_dir
+        id: read-dir
+        run: |
+          DIR=$(cat changed_dir.txt)
+          echo "dir=$DIR" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.read-dir.outputs.dir)] }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.4.0
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ${{ steps.read-dir.outputs.dir }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: ${{ steps.read-dir.outputs.dir }}
