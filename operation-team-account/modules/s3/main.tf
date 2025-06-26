@@ -1,49 +1,77 @@
-resource "random_id" "bucket_id" {
-  byte_length = 4
+variable "bucket_name" { type = string }
+
+resource "aws_kms_key" "cloudtrail" {
+  description             = "KMS key for encrypting CloudTrail logs in S3"
+  deletion_window_in_days = 30
 }
 
-resource "aws_s3_bucket" "firehose_backup" {
-  bucket        = "siem-firehose-backup-${random_id.bucket_id.hex}"
-  force_destroy = true
+resource "aws_s3_bucket" "logs" {
+  bucket = var.bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "logs" {
+  bucket = aws_s3_bucket.logs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
+  bucket = aws_s3_bucket.logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.cloudtrail.arn
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "block" {
-  bucket = aws_s3_bucket.firehose_backup.id
-
+  bucket                  = aws_s3_bucket.logs.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-# S3 버킷에 Lifecycle 정책 붙이기
-resource "aws_s3_bucket_lifecycle_configuration" "firehose_backup" {
-  bucket = aws_s3_bucket.firehose_backup.id
-
-  rule {
-    id     = "ExpireBackup"
-    status = "Enabled"
-
-    filter { prefix = "backup/" }
-
-    expiration { days = 7 } # 7일 지난 백업은 자동 삭제
-  }
+resource "aws_s3_bucket_policy" "cloudtrail" {
+  bucket = aws_s3_bucket.logs.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AllowCloudTrailAclCheck",
+        Effect    = "Allow",
+        Principal = { Service = "cloudtrail.amazonaws.com" },
+        Action    = "s3:GetBucketAcl",
+        Resource  = aws_s3_bucket.logs.arn
+      },
+      {
+        Sid       = "AllowCloudTrailWrite",
+        Effect    = "Allow",
+        Principal = { Service = "cloudtrail.amazonaws.com" },
+        Action    = "s3:PutObject",
+        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*",
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-server-side-encryption" = "aws:kms"
+          }
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_kms_key" "s3_cmk" {
-  description             = "KMS key for encrypting Firehose backup S3 bucket"
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
+output "bucket_name" {
+  value = aws_s3_bucket.logs.bucket
 }
 
-# 암호화 설정
-resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
-  bucket = aws_s3_bucket.firehose_backup.id
+output "bucket_arn" {
+  value = aws_s3_bucket.logs.arn
+}
 
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.s3_cmk.arn
-    }
-  }
+output "kms_key_arn" {
+  value = aws_kms_key.cloudtrail.arn
 }

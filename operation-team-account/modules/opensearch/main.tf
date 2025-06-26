@@ -1,17 +1,34 @@
+variable "domain_name"           { type = string }
+variable "engine_version"        { type = string }
+variable "cluster_instance_type" { type = string }
+variable "cluster_instance_count"{ type = number }
+variable "ebs_volume_size"       { type = number }
+variable "kms_key_arn"           { type = string }
+variable "firehose_role_arn"     { type = string }
+
 data "aws_caller_identity" "current" {}
 
 resource "aws_opensearch_domain" "siem" {
-  domain_name    = "siem-domain"
-  engine_version = "OpenSearch_2.9"
+  domain_name    = var.domain_name
+  engine_version = var.engine_version
 
   cluster_config {
-    instance_type  = "t3.small.search"
-    instance_count = 1
+    instance_type  = var.cluster_instance_type
+    instance_count = var.cluster_instance_count
   }
 
   ebs_options {
     ebs_enabled = true
-    volume_size = 10
+    volume_size = var.ebs_volume_size
+  }
+
+  encrypt_at_rest {
+    enabled    = true
+    kms_key_id = var.kms_key_arn
+  }
+
+  node_to_node_encryption {
+    enabled = true
   }
 
   domain_endpoint_options {
@@ -19,32 +36,32 @@ resource "aws_opensearch_domain" "siem" {
     tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
   }
 
-  node_to_node_encryption {
-    enabled = true
-  }
-
-  encrypt_at_rest {
-    enabled = true
-  }
-
-  access_policies = jsonencode({
-    Version = "2012-10-17"
+    access_policies = jsonencode({
+    Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
+        Effect    = "Allow",
         Principal = {
           AWS = [
-            "arn:aws:sts::${data.aws_caller_identity.current.account_id}:assumed-role/${var.sso_role_name}/${var.sso_user_name}",
             var.firehose_role_arn,
+            data.aws_caller_identity.current.arn
           ]
-        }
-        Action = "es:*"
-        # 도메인 및 그 하위 인덱스·도큐먼트 전체 리소스
+        },
+        Action   = "es:*",
         Resource = [
-          aws_opensearch_domain.siem.arn,
-          "${aws_opensearch_domain.siem.arn}/*",
+          "${aws_opensearch_domain.siem.arn}",
+          "${aws_opensearch_domain.siem.arn}/*"
         ]
       }
     ]
   })
+}
+
+# Export values
+output "endpoint" {
+  value = aws_opensearch_domain.siem.endpoint
+}
+
+output "domain_arn" {
+  value = aws_opensearch_domain.siem.arn
 }
