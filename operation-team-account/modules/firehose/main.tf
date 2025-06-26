@@ -1,8 +1,9 @@
-variable "s3_bucket_arn"         { type = string }
+variable "s3_bucket_arn"          { type = string }
 variable "opensearch_domain_arn" { type = string }
 
 resource "aws_iam_role" "firehose_role" {
   name = "firehose_delivery_role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -17,20 +18,21 @@ resource "aws_iam_role" "firehose_role" {
 
 resource "aws_iam_role_policy" "firehose_policy" {
   role = aws_iam_role.firehose_role.id
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect   = "Allow",
-        Action   = [
+        Effect = "Allow",
+        Action = [
           "s3:PutObject",
           "s3:GetBucketLocation"
         ],
-        Resource = ["${var.s3_bucket_arn}/*"]
+        Resource = "${var.s3_bucket_arn}/*"
       },
       {
-        Effect   = "Allow",
-        Action   = [
+        Effect = "Allow",
+        Action = [
           "es:ESHttpPost",
           "es:ESHttpPut"
         ],
@@ -62,9 +64,14 @@ resource "aws_kinesis_firehose_delivery_stream" "to_opensearch" {
       error_output_prefix = "errors/"
     }
   }
+
+  tags = {
+    Name        = "firehose-opensearch"
+    Environment = "dev"
+    Owner       = "monitoring-team"
+  }
 }
 
-# Export role ARN for downstream
 output "firehose_role_arn" {
   value = aws_iam_role.firehose_role.arn
 }

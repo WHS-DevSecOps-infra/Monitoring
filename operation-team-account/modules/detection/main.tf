@@ -8,11 +8,15 @@ resource "aws_kms_key" "sns" {
 resource "aws_sns_topic" "alerts" {
   name              = var.sns_topic_name
   kms_master_key_id = aws_kms_key.sns.arn
+  tags = {
+    Environment = "dev"
+    Team        = "monitoring"
+  }
 }
 
 resource "aws_sns_topic_policy" "alerts_policy" {
   arn = aws_sns_topic.alerts.arn
-  policy    = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
@@ -20,7 +24,12 @@ resource "aws_sns_topic_policy" "alerts_policy" {
         Effect    = "Allow",
         Principal = { Service = "events.amazonaws.com" },
         Action    = "sns:Publish",
-        Resource  = aws_sns_topic.alerts.arn
+        Resource  = aws_sns_topic.alerts.arn,
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:events:*:*:rule/*"
+          }
+        }
       }
     ]
   })
@@ -31,9 +40,9 @@ resource "aws_cloudwatch_event_rule" "root_login_failure" {
   name        = "detect-root-login-failure"
   description = "Detect failed console login attempts by root accounts"
   event_pattern = jsonencode({
-    source      = ["aws.signin"],
+    source       = ["aws.signin"],
     "detail-type" = ["AWS Console Sign In via CloudTrail"],
-    detail      = {
+    detail = {
       userIdentity = { type = ["Root"] },
       responseElements = { ConsoleLogin = ["Failure"] }
     }
@@ -51,9 +60,9 @@ resource "aws_cloudwatch_event_rule" "iam_policy_change" {
   name        = "detect-iam-policy-change"
   description = "Detect IAM policy modifications"
   event_pattern = jsonencode({
-    source      = ["aws.iam"],
+    source       = ["aws.iam"],
     "detail-type" = ["AWS API Call via CloudTrail"],
-    detail      = {
+    detail = {
       eventName = [
         "PutUserPolicy",
         "AttachUserPolicy",
@@ -70,7 +79,6 @@ resource "aws_cloudwatch_event_target" "iam_change_to_sns" {
   arn       = aws_sns_topic.alerts.arn
 }
 
-# Export SNS topic ARN
 output "alerts_sns_arn" {
   value       = aws_sns_topic.alerts.arn
   description = "ARN of SNS topic for security alerts"

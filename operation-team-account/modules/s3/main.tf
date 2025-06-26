@@ -6,7 +6,7 @@ resource "aws_kms_key" "cloudtrail" {
 }
 
 resource "aws_s3_bucket" "logs" {
-  bucket = var.bucket_name
+  bucket = "dev-${var.bucket_name}"
 }
 
 resource "aws_s3_bucket_versioning" "logs" {
@@ -62,6 +62,19 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
       }
     ]
   })
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "logs" {
+  bucket = aws_s3_bucket.logs.id
+
+  rule {
+    id     = "expire-logs-after-30-days"
+    status = "Enabled"
+
+    expiration {
+      days = 30
+    }
+  }
 }
 
 output "bucket_name" {
