@@ -28,7 +28,17 @@ jobs:
       - name: Detect Changed Folder
         id: detect
         run: |
-          FILES=$(git diff --name-only origin/main ${{ github.sha }})
+          echo "Detecting changed files for event: $GITHUB_EVENT_NAME"
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          else
+            MERGE_BASE=$(git merge-base origin/main HEAD)
+            FILES=$(git diff --name-only "$MERGE_BASE" HEAD)
+          fi
+
           echo "Changed files:"
           echo "$FILES"
 
@@ -45,6 +55,7 @@ jobs:
             echo "No relevant folder changed. Skipping rest of workflow."
             echo "skip=true" >> $GITHUB_OUTPUT
           fi
+
       # 4. AWS Credentials 설정
       - name: Configure AWS Credentials via OIDC
         if: steps.detect.outputs.skip != 'true'
@@ -52,6 +63,7 @@ jobs:
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[format('ROLE_ARN_{0}', steps.detect.outputs.account)] }}
+
       # 5. tfsec 설치
       - name: Install tfsec
         if: steps.detect.outputs.skip != 'true'
@@ -81,7 +93,7 @@ jobs:
       - name: Terraform Format Check
         if: steps.detect.outputs.skip != 'true'
         run: terraform fmt -check -recursive
-
+        working-directory: ${{ steps.detect.outputs.work_dir }}
       # 9. terraform validate
       - name: Terraform Validate
         if: steps.detect.outputs.skip != 'true'
