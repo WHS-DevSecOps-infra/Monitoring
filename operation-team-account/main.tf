@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket  = "<YOUR-SECURE-TFSTATE-BUCKET>"
+    bucket  = "moni-tfstate"
     key     = "devsecops/monitoring/terraform.tfstate"
     region  = "ap-northeast-2"
     encrypt = true
