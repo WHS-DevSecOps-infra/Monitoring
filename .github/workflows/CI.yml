@@ -43,10 +43,13 @@ jobs:
 
           if echo "$FILES" | grep -q '^operation-team-account/'; then
             DIR="operation-team-account"
+            ACCOUNT="OPERATION"
           elif echo "$FILES" | grep -q '^identity-team-account/'; then
             DIR="identity-team-account"
+            ACCOUNT="IDENTITY"
           elif echo "$FILES" | grep -q '^prod-team-account/'; then
             DIR="prod-team-account"
+            ACCOUNT="PROD"
           else
             echo "No matching folder changed."
             exit 1
@@ -54,6 +57,7 @@ jobs:
 
           echo "$DIR" > changed_dir.txt
           echo "work_dir=$DIR" >> $GITHUB_OUTPUT
+          echo "account=$ACCOUNT" >> $GITHUB_OUTPUT
 
       # 4. 감지된 디렉토리 정보를 파일로 저장
       - name: Save Changed Dir
@@ -148,8 +152,9 @@ jobs:
       - name: Generate Infracost Breakdown
         if: steps.detect.outputs.skip != 'true'
         run: |
+          ls -al ${{ steps.detect.outputs.work_dir }}
           infracost breakdown \
-            --path=${{ steps.detect.outputs.work_dir }}/plan.json \
+            --path=${{ steps.detect.outputs.work_dir }}/tfplan.binary \
             --format=json \
             --out-file=/tmp/infracost.json
         env:
