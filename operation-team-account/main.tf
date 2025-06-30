@@ -8,17 +8,18 @@ terraform {
   }
 
   backend "s3" {
-    bucket  = "moni-tfstate"
-    key     = "devsecops/monitoring/terraform.tfstate"
+    bucket  = "cloudfence-operation-s3"
+    key     = "monitoring/terraform.tfstate"
     region  = "ap-northeast-2"
     encrypt = true
-     dynamodb_table = "tf-lock"
+    dynamodb_table = "tfstate-operation-lock"
+    profile        = "whs-sso"
   }
 }
 
 provider "aws" {
   region = var.aws_region
-  profile = "devsecops-sso"
+  profile = "whs-sso"
 }
 
 module "s3" {

@@ -20,5 +20,5 @@ resource "aws_cloudtrail" "org" {
 
 output "status" {
   description = "CloudTrail logging enabled"
-  value       = aws_cloudtrail.org.is_logging
+  value       = aws_cloudtrail.org.name
 }

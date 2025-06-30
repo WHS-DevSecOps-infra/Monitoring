@@ -17,29 +17,41 @@ resource "aws_iam_role" "firehose_role" {
 }
 
 resource "aws_iam_role_policy" "firehose_policy" {
+  name = "firehose-opensearch-policy"
   role = aws_iam_role.firehose_role.id
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "s3:PutObject",
-          "s3:GetBucketLocation"
-        ],
-        Resource = "${var.s3_bucket_arn}/*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          "es:ESHttpPost",
-          "es:ESHttpPut"
-        ],
-        Resource = "${var.opensearch_domain_arn}/*"
-      }
-    ]
-  })
+  Version = "2012-10-17",
+  Statement = [
+    {
+      Effect = "Allow",
+      Action = [
+        "es:DescribeElasticsearchDomain",
+        "es:DescribeElasticsearchDomains",
+        "es:DescribeElasticsearchDomainConfig",
+        "es:ESHttpPost",
+        "es:ESHttpPut",
+        "es:ESHttpGet"
+      ],
+      Resource = var.opensearch_domain_arn
+    },
+    {
+      Effect = "Allow",
+      Action = [
+        "s3:PutObject"
+      ],
+      Resource = "${var.s3_bucket_arn}/AWSLogs/*"
+    },
+    {
+      Effect = "Allow",
+      Action = [
+        "s3:GetBucketAcl",
+        "s3:ListBucket"
+      ],
+      Resource = var.s3_bucket_arn
+    }
+  ]
+})
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "to_opensearch" {

@@ -36,29 +36,6 @@ resource "aws_opensearch_domain" "siem" {
     tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
   }
 
-  access_policies = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect    = "Allow",
-        Principal = {
-          AWS = [
-            var.firehose_role_arn,
-            data.aws_caller_identity.current.arn
-          ]
-        },
-        Action   = [
-          "es:ESHttpPut",
-          "es:ESHttpPost"
-        ],
-        Resource = [
-          "${aws_opensearch_domain.siem.arn}",
-          "${aws_opensearch_domain.siem.arn}/*"
-        ]
-      }
-    ]
-  })
-
   tags = {
     Name        = "siem-opensearch"
     Environment = "dev"

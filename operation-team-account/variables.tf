@@ -7,13 +7,13 @@ variable "aws_region" {
 variable "cloudtrail_bucket_name" {
   description = "S3 bucket name for CloudTrail logs"
   type        = string
-  default     = "devsecops-cloudtrail-logs"
+  default     = "whs-cloudtrail-logs"
 }
 
 variable "opensearch_domain_name" {
   description = "OpenSearch domain name"
   type        = string
-  default     = "siem-domain"
+  default     = "whs-domain"
 }
 
 variable "opensearch_engine_version" {
@@ -43,5 +43,5 @@ variable "opensearch_ebs_size" {
 variable "alerts_sns_topic" {
   description = "SNS topic name for security alerts"
   type        = string
-  default     = "security-alerts"
+  default     = "whs-security-alerts"
 }
