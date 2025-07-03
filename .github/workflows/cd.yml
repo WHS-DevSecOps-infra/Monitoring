@@ -37,10 +37,6 @@ jobs:
           FILTER_OUTPUTS_operation: ${{ steps.filter.outputs.operation }}
           FILTER_OUTPUTS_identity: ${{ steps.filter.outputs.identity }}
           FILTER_OUTPUTS_prod: ${{ steps.filter.outputs.prod }}
-          FILTER_OUTPUTS_dev: ${{ steps.filter.outputs.dev }}
-          FILTER_OUTPUTS_security: ${{ steps.filter.outputs.security }}
-          FILTER_OUTPUTS_stage: ${{ steps.filter.outputs.stage }}
-          FILTER_OUTPUTS_management: ${{ steps.filter.outputs.management }}
         run: |
           declare -A ROLE_MAP=(
             ["operation"]="ROLE_ARN_OPERATION"
