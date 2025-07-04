@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 terraform {
   required_version = ">= 1.1.0"
   required_providers {
@@ -13,24 +15,24 @@ terraform {
     region  = "ap-northeast-2"
     encrypt = true
     dynamodb_table = "tfstate-operation-lock"
-    profile        = "whs-sso"
+    profile        = "whs-sso-operation"
   }
 }
 
 provider "aws" {
   region = var.aws_region
-  profile = "whs-sso"
+  profile = "whs-sso-operation"
+}
+
+provider "aws" {
+  alias  = "management"
+  region = var.aws_region
+  profile = "whs-sso-management"
 }
 
 module "s3" {
   source      = "./modules/s3"
   bucket_name = var.cloudtrail_bucket_name
-}
-
-module "cloudtrail" {
-  source          = "./modules/cloudtrail"
-  s3_bucket_name  = module.s3.bucket_name
-  kms_key_arn     = module.s3.kms_key_arn
 }
 
 module "firehose" {
@@ -53,4 +55,20 @@ module "opensearch" {
 module "detection" {
   source          = "./modules/detection"
   sns_topic_name  = var.alerts_sns_topic
+}
+
+module "cloudwatch" {
+  source                     = "./modules/cloudwatch"
+  aws_region                 = var.aws_region
+  firehose_stream_name       = module.firehose.firehose_stream_name
+  firehose_role_arn          = module.firehose.firehose_role_arn
+  firehose_arn               = module.firehose.firehose_arn
+  cloudwatch_log_group_name  = "/aws/cloudtrail/logs"
+  management_account_id      = var.management_account_id
+  cloudtrail_logs_role_arn   = module.cloudwatch.cloudtrail_to_cwlogs_role_arn
+
+   providers = {
+    aws = aws
+    aws.management = aws.management
+  }
 }

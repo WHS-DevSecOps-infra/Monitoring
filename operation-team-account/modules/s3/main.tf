@@ -1,12 +1,29 @@
+data "aws_caller_identity" "current" {}
+
 variable "bucket_name" { type = string }
 
 resource "aws_kms_key" "cloudtrail" {
-  description             = "KMS key for encrypting CloudTrail logs in S3"
-  deletion_window_in_days = 30
+  description         = "KMS key for encrypting CloudTrail logs"
+  enable_key_rotation = true
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid      = "AllowRootAccountFullAccess"
+        Effect   = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_s3_bucket" "logs" {
-  bucket = "dev-${var.bucket_name}"
+  bucket = var.bucket_name
 }
 
 resource "aws_s3_bucket_versioning" "logs" {
@@ -49,17 +66,18 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
         Resource  = aws_s3_bucket.logs.arn
       },
       {
-        Sid       = "AllowCloudTrailWrite",
-        Effect    = "Allow",
-        Principal = { Service = "cloudtrail.amazonaws.com" },
-        Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*",
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-server-side-encryption" = "aws:kms"
-          }
-        }
-      }
+  Sid       = "AllowCloudTrailWrite",
+  Effect    = "Allow",
+  Principal = { Service = "cloudtrail.amazonaws.com" },
+  Action    = "s3:PutObject",
+  Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*",
+  Condition = {
+    StringEquals = {
+      "s3:x-amz-server-side-encryption" = "aws:kms",
+      "s3:x-amz-acl"                    = "bucket-owner-full-control"
+    }
+  }
+}
     ]
   })
 }

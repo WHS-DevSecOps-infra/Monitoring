@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "cloudtrail_bucket_name" {
-  description = "S3 bucket name for CloudTrail logs"
+  description = "S3 bucket name used by organization CloudTrail (from management account)"
   type        = string
   default     = "whs-cloudtrail-logs"
 }
@@ -44,4 +44,9 @@ variable "alerts_sns_topic" {
   description = "SNS topic name for security alerts"
   type        = string
   default     = "whs-security-alerts"
+}
+
+variable "management_account_id" {
+  description = "Management AWS Account ID"
+  type        = string
 }

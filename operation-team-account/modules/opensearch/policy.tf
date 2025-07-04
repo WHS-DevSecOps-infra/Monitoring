@@ -5,14 +5,11 @@ resource "aws_opensearch_domain_policy" "siem_policy" {
     Version = "2012-10-17",
     Statement = [
       {
-        Effect    = "Allow",
+        Effect = "Allow",
         Principal = {
-          AWS = [
-            var.firehose_role_arn,
-            data.aws_caller_identity.current.arn
-          ]
+          AWS = [ var.firehose_role_arn ]
         },
-        Action   = [
+        Action = [
           "es:ESHttpPut",
           "es:ESHttpPost"
         ],

@@ -3,7 +3,29 @@ output "opensearch_endpoint" {
   value       = module.opensearch.endpoint
 }
 
-output "cloudtrail_status" {
-  description = "CloudTrail logging status"
-  value       = module.cloudtrail.status
+output "bucket_name" {
+  description = "S3 bucket name for CloudTrail logs"
+  value       = module.s3.bucket_name
+}
+
+output "bucket_arn" {
+  description = "S3 bucket ARN for CloudTrail logs"
+  value       = module.s3.bucket_arn
+}
+
+output "kms_key_arn" {
+  description = "KMS key ARN used to encrypt CloudTrail logs"
+  value       = module.s3.kms_key_arn
+}
+
+output "cloudwatch_logs_group_arn" {
+  value = module.cloudwatch.cloudwatch_logs_group_arn
+}
+output "cloudtrail_to_cwlogs_role_arn" {
+  value = module.cloudwatch.cloudtrail_to_cwlogs_role_arn
+}
+
+output "operation_account_id" {
+  description = "Account ID of the operation account"
+  value       = data.aws_caller_identity.current.account_id
 }
