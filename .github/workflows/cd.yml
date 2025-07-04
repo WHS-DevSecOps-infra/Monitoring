@@ -12,17 +12,13 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed_dir: ${{ steps.set-dir.outputs.dir }}
-      secret_key: ${{ steps.set-dir.outputs.secret_key }}
-
+      matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Detect changed directories
-        id: changes
+      - name: Filter Paths
+        id: filter
         uses: dorny/paths-filter@v3
         with:
           filters: |
@@ -33,39 +29,70 @@ jobs:
             prod:
               - 'prod-team-account/**'
 
-      - name: Set changed dir output
-        id: set-dir
+      - name: Build Matrix from Filter (with subdirs)
+        id: set
+        env:
+          FILTER_OUTPUTS_operation: ${{ steps.filter.outputs.operation }}
+          FILTER_OUTPUTS_identity: ${{ steps.filter.outputs.identity }}
+          FILTER_OUTPUTS_prod: ${{ steps.filter.outputs.prod }}
+          FILTER_OUTPUTS_dev: ${{ steps.filter.outputs.dev }}
+          FILTER_OUTPUTS_security: ${{ steps.filter.outputs.security }}
+          FILTER_OUTPUTS_stage: ${{ steps.filter.outputs.stage }}
+          FILTER_OUTPUTS_management: ${{ steps.filter.outputs.management }}
         run: |
-          if [[ "${{ steps.changes.outputs.operation }}" == "true" ]]; then
-            echo "dir=operation-team-account" >> $GITHUB_OUTPUT
-            echo "secret_key=ROLE_ARN_OPERATION" >> $GITHUB_OUTPUT
-          elif [[ "${{ steps.changes.outputs.identity }}" == "true" ]]; then
-            echo "dir=identity-team-account" >> $GITHUB_OUTPUT
-            echo "secret_key=ROLE_ARN_IDENTITY" >> $GITHUB_OUTPUT
-          elif [[ "${{ steps.changes.outputs.prod }}" == "true" ]]; then
-            echo "dir=prod-team-account" >> $GITHUB_OUTPUT
-            echo "secret_key=ROLE_ARN_PROD" >> $GITHUB_OUTPUT
+          declare -A ROLE_MAP=(
+            ["operation"]="ROLE_ARN_OPERATION"
+            ["identity"]="ROLE_ARN_IDENTITY"
+            ["prod"]="ROLE_ARN_PROD"
+            ["dev"]="ROLE_ARN_DEV"
+            ["security"]="ROLE_ARN_SECURITY"
+            ["stage"]="ROLE_ARN_STAGE"
+            ["management"]="ROLE_ARN_MANAGEMENT"
+          )
+
+          MATRIX_ITEMS=()
+
+          for KEY in "${!ROLE_MAP[@]}"; do
+            VAR_NAME="FILTER_OUTPUTS_${KEY}"
+            VALUE="${!VAR_NAME}"
+
+            if [ "$VALUE" = "true" ]; then
+              BASE_DIR="${KEY}-team-account"
+
+              for DIR in $(find $BASE_DIR -type d -mindepth 1); do
+                if [[ "$DIR" != *".terraform"* ]]; then
+                  MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
+                fi
+              done
+            fi
+          done
+
+          if [ ${#MATRIX_ITEMS[@]} -eq 0 ]; then
+            echo "matrix=[]" >> $GITHUB_OUTPUT
           else
-            echo "dir=" >> $GITHUB_OUTPUT
-            echo "secret_key=" >> $GITHUB_OUTPUT
+            JSON="[$(IFS=,; echo "${MATRIX_ITEMS[*]}")]"
+            echo "matrix=$JSON" >> $GITHUB_OUTPUT
           fi
 
   terraform-apply:
-    runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed_dir != ''
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
-          role-to-assume: ${{ secrets[needs.detect-changes.outputs.secret_key] }}
+          role-to-assume: ${{ secrets[matrix.role_key] }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
@@ -74,16 +101,8 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ${{ needs.detect-changes.outputs.changed_dir }}
-
-      # - name: Terraform Import S3 Bucket
-      #   run: terraform import aws_s3_bucket.state_org cloudfence-identity-bucket
-      #   working-directory: ${{ needs.detect-changes.outputs.changed_dir }}
-
-      # - name: Terraform Import DynamoDB Table
-      #   run: terraform import aws_dynamodb_table.lock_org cloudfence-identity-lock
-      #   working-directory: ${{ needs.detect-changes.outputs.changed_dir }}
+        working-directory: ${{ matrix.dir }}
 
       - name: Terraform Apply
         run: terraform apply -auto-approve
-        working-directory: ${{ needs.detect-changes.outputs.changed_dir }}
+        working-directory: ${{ matrix.dir }}
