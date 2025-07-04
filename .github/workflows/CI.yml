@@ -1,9 +1,8 @@
-name: Organization CI
+name: Monitoring CI
 
 on:
   pull_request:
     branches: [main]
-    # 특정 디렉토리의 파일이 변경되었을 때에만 워크플로우 실행
     paths:
       - "operation-team-account/**"
       - "identity-team-account/**"
@@ -20,47 +19,65 @@ jobs:
     outputs:
       matrix: ${{ steps.set.outputs.matrix }}
     steps:
-      # git repository code 가져오기
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # 최신 origin/main 브랜치 가져오기
       - name: Fetch origin/main
         run: git fetch origin main
 
-      # 변경된 디렉토리를 감지하고 matrix 형태로 저장
       - name: Detect Changed Directories & Build Matrix
         id: set
         run: |
           FILES=$(git diff --name-only origin/main...${{ github.sha }})
           echo "Changed files:"
           echo "$FILES"
-          # 각 디렉토리에 대응하는 assume role key 정의
+
           declare -A ROLE_MAP=(
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
             ["prod-team-account"]="ROLE_ARN_PROD"
           )
 
-          MATRIX_ITEMS=()
+          TMP_FILE=$(mktemp)
 
-          # 변경된 디렉토리에 따라 matrix 구성
-          for DIR in "${!ROLE_MAP[@]}"; do
-            if echo "$FILES" | grep -q "^$DIR/"; then
-              ROLE_KEY="${ROLE_MAP[$DIR]}"
-              MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"$ROLE_KEY\"}")
+          for FILE in $FILES; do
+            # ex) identity-team-account/S3/main.tf
+            DIR=$(dirname "$FILE")
+            TOP_DIR=$(echo $DIR | cut -d/ -f1)
+            ROLE_KEY="${ROLE_MAP[$TOP_DIR]}"
+
+            if [ -n "$ROLE_KEY" ]; then
+              echo "$DIR|$ROLE_KEY" >> $TMP_FILE
             fi
           done
 
-          # 변경 없으면 빈 matrix 반환
-          if [ ${#MATRIX_ITEMS[@]} -eq 0 ]; then
-            echo "matrix=[]" >> $GITHUB_OUTPUT
-          else
-            JSON="[$(IFS=,; echo "${MATRIX_ITEMS[*]}")]"
-            echo "matrix=$JSON" >> $GITHUB_OUTPUT
-          fi
+          # 중복 제거
+          UNIQUE_LINES=$(sort $TMP_FILE | uniq)
+
+          MATRIX_JSON="["
+          FIRST=1
+
+          while IFS= read -r LINE; do
+            DIR=$(echo $LINE | cut -d"|" -f1)
+            ROLE_KEY=$(echo $LINE | cut -d"|" -f2)
+
+            if [ $FIRST -eq 1 ]; then
+              FIRST=0
+            else
+              MATRIX_JSON="$MATRIX_JSON,"
+            fi
+
+            MATRIX_JSON="$MATRIX_JSON{\"dir\":\"$DIR\",\"role_key\":\"$ROLE_KEY\"}"
+          done <<< "$UNIQUE_LINES"
+
+          MATRIX_JSON="$MATRIX_JSON]"
+
+          echo "Final JSON matrix:"
+          echo "$MATRIX_JSON"
+
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   terraform-ci:
     needs: detect-changes
@@ -78,48 +95,39 @@ jobs:
       INFRACOST_TERRAFORM_CLI_WRAPPER: false
 
     steps:
-      # 변경된 코드 체크아웃
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # (OIDC 기반) AWS 자격 증명 구성
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[matrix.role_key] }}
 
-      # tfsec 설치
       - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
-      # tfsec 실행(High 이상의 취약점이 있으면 실패 처리)
       - name: Run tfsec (fail on HIGH+)
         run: tfsec --minimum-severity HIGH --no-color ${{ matrix.dir }}
 
-      # Terraform 설치
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 1.4.0
 
-      # Terraform 초기화
       - name: Terraform Init
         run: terraform init
         working-directory: ${{ matrix.dir }}
 
-      # Terraform 코드 포맷 확인
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
         working-directory: ${{ matrix.dir }}
 
-      # Terraform 문법 유효성 검사
       - name: Terraform Validate
         run: terraform validate
         working-directory: ${{ matrix.dir }}
 
-      # Terraform plan 및 plan 파일 생성, 출력
       - name: Terraform Plan
         id: plan
         run: |
@@ -131,7 +139,6 @@ jobs:
           echo 'EOF' >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.dir }}
 
-      # Terraform plan 결과를 PR 댓글로 출력
       - name: Comment Terraform Plan on PR
         if: github.event.pull_request.number != ''
         uses: peter-evans/create-or-update-comment@v4
@@ -142,11 +149,10 @@ jobs:
             ```hcl
             ${{ steps.plan.outputs.PLAN }}
             ```
-      # Infracost 설치
+
       - name: Setup Infracost
         uses: infracost/actions/setup@v2
 
-      # Terraform plan.json 기반으로 비용 분석
       - name: Infracost Breakdown
         run: |
           infracost breakdown \
@@ -155,7 +161,6 @@ jobs:
             --out-file=infracost.json
         working-directory: ${{ matrix.dir }}
 
-      # Infracost 결과를 PR 댓글로 작성
       - name: Infracost Comment on Pull Request
         uses: infracost/actions/comment@v1
         with:
