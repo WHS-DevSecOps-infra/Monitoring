@@ -34,11 +34,11 @@ resource "aws_cloudwatch_event_rule" "detect_root_fail" {
   name        = "detect-root-login-failure"
   description = "Detect failed root console login"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
-      eventName     = ["ConsoleLogin"]
-      errorCode     = ["FailedAuthentication"]
+      eventName    = ["ConsoleLogin"]
+      errorCode    = ["FailedAuthentication"]
       userIdentity = { type = ["Root"] }
     }
   })
@@ -64,13 +64,13 @@ resource "aws_cloudwatch_event_rule" "detect_permission_change" {
   name        = "detect-iam-permission-change"
   description = "Detect changes to IAM policies"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
       eventName = [
-        "AttachUserPolicy","DetachUserPolicy",
-        "PutUserPolicy","DeleteUserPolicy",
-        "CreatePolicy","DeletePolicy"
+        "AttachUserPolicy", "DetachUserPolicy",
+        "PutUserPolicy", "DeleteUserPolicy",
+        "CreatePolicy", "DeletePolicy"
       ]
     }
   })
@@ -96,10 +96,10 @@ resource "aws_cloudwatch_event_rule" "detect_iam_delete" {
   name        = "detect-iam-deletion"
   description = "Detect deletion of IAM users, roles, or login profiles"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
-      eventName = ["DeleteUser","DeleteRole","DeleteLoginProfile"]
+      eventName = ["DeleteUser", "DeleteRole", "DeleteLoginProfile"]
     }
   })
   event_bus_name = "default"
@@ -124,10 +124,10 @@ resource "aws_cloudwatch_event_rule" "detect_cloudtrail_disable" {
   name        = "detect-cloudtrail-disable"
   description = "Detect when CloudTrail is stopped or deleted"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
-      eventName = ["StopLogging","DeleteTrail"]
+      eventName = ["StopLogging", "DeleteTrail"]
     }
   })
   event_bus_name = "default"
@@ -152,10 +152,10 @@ resource "aws_cloudwatch_event_rule" "detect_mfa_deactivate" {
   name        = "detect-mfa-deactivation"
   description = "Detect MFA deactivation or deletion"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
-      eventName = ["DeactivateMFADevice","DeleteVirtualMFADevice"]
+      eventName = ["DeactivateMFADevice", "DeleteVirtualMFADevice"]
     }
   })
   event_bus_name = "default"
@@ -180,12 +180,12 @@ resource "aws_cloudwatch_event_rule" "detect_sg_change" {
   name        = "detect-security-group-change"
   description = "Detect changes to Security Group ingress/egress rules"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
       eventName = [
-        "AuthorizeSecurityGroupIngress","RevokeSecurityGroupIngress",
-        "AuthorizeSecurityGroupEgress","RevokeSecurityGroupEgress"
+        "AuthorizeSecurityGroupIngress", "RevokeSecurityGroupIngress",
+        "AuthorizeSecurityGroupEgress", "RevokeSecurityGroupEgress"
       ]
     }
   })
@@ -211,10 +211,10 @@ resource "aws_cloudwatch_event_rule" "detect_s3_public" {
   name        = "detect-s3-public-access"
   description = "Detect when S3 bucket ACL or policy makes it public"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
-      eventName = ["PutBucketAcl","PutBucketPolicy","PutPublicAccessBlock"]
+      eventName = ["PutBucketAcl", "PutBucketPolicy", "PutPublicAccessBlock"]
     }
   })
   event_bus_name = "default"
@@ -239,7 +239,7 @@ resource "aws_cloudwatch_event_rule" "detect_ec2_launch" {
   name        = "detect-ec2-instance-launch"
   description = "Detect when EC2 instances are launched"
   event_pattern = jsonencode({
-    source = ["aws.cloudtrail"]
+    source        = ["aws.cloudtrail"]
     "detail-type" = ["AWS API Call via CloudTrail"]
     detail = {
       eventName = ["RunInstances"]

@@ -9,8 +9,8 @@ resource "aws_kms_key" "cloudtrail" {
     Statement = [
       # 운영 계정 루트에게 전체 권한
       {
-        Sid       = "AllowRootAccountFullAccess"
-        Effect    = "Allow"
+        Sid    = "AllowRootAccountFullAccess"
+        Effect = "Allow"
         Principal = {
           AWS = [
             "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root", # Operation root
@@ -39,7 +39,7 @@ resource "aws_kms_key" "cloudtrail" {
         Resource = "*"
         Condition = {
           StringEquals = {
-            "kms:CallerAccount": "${var.management_account_id}"
+            "kms:CallerAccount" : "${var.management_account_id}"
           }
         }
       }
@@ -53,7 +53,7 @@ resource "aws_kms_alias" "cloudtrail" {
 }
 
 resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket = var.bucket_name
+  bucket        = var.bucket_name
   force_destroy = false
 
   lifecycle {
@@ -65,6 +65,15 @@ resource "aws_s3_bucket" "cloudtrail_logs" {
     Environment = "prod"
     Owner       = "security-team"
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "cloudtrail_logs" {
+  bucket = aws_s3_bucket.cloudtrail_logs.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_versioning" "this" {
@@ -89,29 +98,29 @@ resource "aws_s3_bucket_policy" "allow_cloudtrail" {
   bucket = aws_s3_bucket.cloudtrail_logs.id
 
   policy = jsonencode({
-  Version: "2012-10-17",
-  Statement = [
-    {
-      Sid = "AWSCloudTrailWrite",
-      Effect = "Allow",
-      Principal = { "Service": "cloudtrail.amazonaws.com" },
-      Action = "s3:PutObject",
-      Resource = "${aws_s3_bucket.cloudtrail_logs.arn}/AWSLogs/${var.organization_id}/*",
-      Condition = {
-        StringEquals = {
-          "s3:x-amz-acl" = "bucket-owner-full-control"
+    Version : "2012-10-17",
+    Statement = [
+      {
+        Sid       = "AWSCloudTrailWrite",
+        Effect    = "Allow",
+        Principal = { "Service" : "cloudtrail.amazonaws.com" },
+        Action    = "s3:PutObject",
+        Resource  = "${aws_s3_bucket.cloudtrail_logs.arn}/AWSLogs/${var.organization_id}/*",
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
         }
-      }
-    },
-    {
-      Sid = "AWSCloudTrailAclCheck",
-      Effect = "Allow",
-      Principal = { "Service": "cloudtrail.amazonaws.com" },
-      Action = "s3:GetBucketAcl",
-      Resource = "${aws_s3_bucket.cloudtrail_logs.arn}"
-    },
-    {
-        Sid = "AllowOperationAndManagementListBucket",
+      },
+      {
+        Sid       = "AWSCloudTrailAclCheck",
+        Effect    = "Allow",
+        Principal = { "Service" : "cloudtrail.amazonaws.com" },
+        Action    = "s3:GetBucketAcl",
+        Resource  = "${aws_s3_bucket.cloudtrail_logs.arn}"
+      },
+      {
+        Sid    = "AllowOperationAndManagementListBucket",
         Effect = "Allow",
         Principal = {
           AWS = [
@@ -124,7 +133,7 @@ resource "aws_s3_bucket_policy" "allow_cloudtrail" {
         ],
         Resource = "${aws_s3_bucket.cloudtrail_logs.arn}"
       }
-  ]
-}
-)
+    ]
+    }
+  )
 }
