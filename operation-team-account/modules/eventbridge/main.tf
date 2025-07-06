@@ -1,4 +1,4 @@
-resource "aws_eventbridge_rule" "s3_object_created" {
+resource "aws_cloudwatch_event_rule" "s3_object_created" {
   name        = "cloudtrail-s3-event-rule"
   description = "Trigger Lambda on CloudTrail S3 delivery objects"
 
@@ -15,8 +15,8 @@ resource "aws_eventbridge_rule" "s3_object_created" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "lambda" {
-  rule      = aws_eventbridge_rule.s3_object_created.name
+resource "aws_cloudwatch_event_target" "lambda" {
+  rule      = aws_cloudwatch_event_rule.s3_object_created.name
   target_id = "lambda-target"
   arn       = var.lambda_function_arn
 }
@@ -26,11 +26,11 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.s3_object_created.arn
+  source_arn    = aws_cloudwatch_event_rule.s3_object_created.arn
 }
 
 # 루트 계정 로그인 실패 탐지
-resource "aws_eventbridge_rule" "detect_root_fail" {
+resource "aws_cloudwatch_event_rule" "detect_root_fail" {
   name        = "detect-root-login-failure"
   description = "Detect failed root console login"
   event_pattern = jsonencode({
@@ -45,8 +45,8 @@ resource "aws_eventbridge_rule" "detect_root_fail" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_root_fail" {
-  rule      = aws_eventbridge_rule.detect_root_fail.name
+resource "aws_cloudwatch_event_target" "detect_root_fail" {
+  rule      = aws_cloudwatch_event_rule.detect_root_fail.name
   target_id = "root-fail"
   arn       = var.lambda_function_arn
 }
@@ -56,11 +56,11 @@ resource "aws_lambda_permission" "allow_detect_root_fail" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_root_fail.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_root_fail.arn
 }
 
 # 권한 변경 액션 탐지
-resource "aws_eventbridge_rule" "detect_permission_change" {
+resource "aws_cloudwatch_event_rule" "detect_permission_change" {
   name        = "detect-iam-permission-change"
   description = "Detect changes to IAM policies"
   event_pattern = jsonencode({
@@ -77,8 +77,8 @@ resource "aws_eventbridge_rule" "detect_permission_change" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_permission_change" {
-  rule      = aws_eventbridge_rule.detect_permission_change.name
+resource "aws_cloudwatch_event_target" "detect_permission_change" {
+  rule      = aws_cloudwatch_event_rule.detect_permission_change.name
   target_id = "permission-change"
   arn       = var.lambda_function_arn
 }
@@ -88,11 +88,11 @@ resource "aws_lambda_permission" "allow_detect_permission_change" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_permission_change.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_permission_change.arn
 }
 
 # IAM 사용자/역할 삭제 탐지
-resource "aws_eventbridge_rule" "detect_iam_delete" {
+resource "aws_cloudwatch_event_rule" "detect_iam_delete" {
   name        = "detect-iam-deletion"
   description = "Detect deletion of IAM users, roles, or login profiles"
   event_pattern = jsonencode({
@@ -105,8 +105,8 @@ resource "aws_eventbridge_rule" "detect_iam_delete" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_iam_delete" {
-  rule      = aws_eventbridge_rule.detect_iam_delete.name
+resource "aws_cloudwatch_event_target" "detect_iam_delete" {
+  rule      = aws_cloudwatch_event_rule.detect_iam_delete.name
   target_id = "iam-deletion"
   arn       = var.lambda_function_arn
 }
@@ -116,11 +116,11 @@ resource "aws_lambda_permission" "allow_detect_iam_delete" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_iam_delete.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_iam_delete.arn
 }
 
 # CloudTrail 로그 중지/삭제 탐지
-resource "aws_eventbridge_rule" "detect_cloudtrail_disable" {
+resource "aws_cloudwatch_event_rule" "detect_cloudtrail_disable" {
   name        = "detect-cloudtrail-disable"
   description = "Detect when CloudTrail is stopped or deleted"
   event_pattern = jsonencode({
@@ -133,8 +133,8 @@ resource "aws_eventbridge_rule" "detect_cloudtrail_disable" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_cloudtrail_disable" {
-  rule      = aws_eventbridge_rule.detect_cloudtrail_disable.name
+resource "aws_cloudwatch_event_target" "detect_cloudtrail_disable" {
+  rule      = aws_cloudwatch_event_rule.detect_cloudtrail_disable.name
   target_id = "cloudtrail-disable"
   arn       = var.lambda_function_arn
 }
@@ -144,11 +144,11 @@ resource "aws_lambda_permission" "allow_detect_cloudtrail_disable" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_cloudtrail_disable.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_cloudtrail_disable.arn
 }
 
 # MFA 디바이스 비활성화 탐지
-resource "aws_eventbridge_rule" "detect_mfa_deactivate" {
+resource "aws_cloudwatch_event_rule" "detect_mfa_deactivate" {
   name        = "detect-mfa-deactivation"
   description = "Detect MFA deactivation or deletion"
   event_pattern = jsonencode({
@@ -161,8 +161,8 @@ resource "aws_eventbridge_rule" "detect_mfa_deactivate" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_mfa_deactivate" {
-  rule      = aws_eventbridge_rule.detect_mfa_deactivate.name
+resource "aws_cloudwatch_event_target" "detect_mfa_deactivate" {
+  rule      = aws_cloudwatch_event_rule.detect_mfa_deactivate.name
   target_id = "mfa-deactivate"
   arn       = var.lambda_function_arn
 }
@@ -172,11 +172,11 @@ resource "aws_lambda_permission" "allow_detect_mfa_deactivate" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_mfa_deactivate.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_mfa_deactivate.arn
 }
 
 # 보안 그룹 규칙 변경 탐지
-resource "aws_eventbridge_rule" "detect_sg_change" {
+resource "aws_cloudwatch_event_rule" "detect_sg_change" {
   name        = "detect-security-group-change"
   description = "Detect changes to Security Group ingress/egress rules"
   event_pattern = jsonencode({
@@ -192,8 +192,8 @@ resource "aws_eventbridge_rule" "detect_sg_change" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_sg_change" {
-  rule      = aws_eventbridge_rule.detect_sg_change.name
+resource "aws_cloudwatch_event_target" "detect_sg_change" {
+  rule      = aws_cloudwatch_event_rule.detect_sg_change.name
   target_id = "sg-change"
   arn       = var.lambda_function_arn
 }
@@ -203,11 +203,11 @@ resource "aws_lambda_permission" "allow_detect_sg_change" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_sg_change.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_sg_change.arn
 }
 
 # S3 퍼블릭 접근 허용 탐지
-resource "aws_eventbridge_rule" "detect_s3_public" {
+resource "aws_cloudwatch_event_rule" "detect_s3_public" {
   name        = "detect-s3-public-access"
   description = "Detect when S3 bucket ACL or policy makes it public"
   event_pattern = jsonencode({
@@ -220,8 +220,8 @@ resource "aws_eventbridge_rule" "detect_s3_public" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_s3_public" {
-  rule      = aws_eventbridge_rule.detect_s3_public.name
+resource "aws_cloudwatch_event_target" "detect_s3_public" {
+  rule      = aws_cloudwatch_event_rule.detect_s3_public.name
   target_id = "s3-public"
   arn       = var.lambda_function_arn
 }
@@ -231,11 +231,11 @@ resource "aws_lambda_permission" "allow_detect_s3_public" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_s3_public.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_s3_public.arn
 }
 
 # EC2 인스턴스 생성 탐지
-resource "aws_eventbridge_rule" "detect_ec2_launch" {
+resource "aws_cloudwatch_event_rule" "detect_ec2_launch" {
   name        = "detect-ec2-instance-launch"
   description = "Detect when EC2 instances are launched"
   event_pattern = jsonencode({
@@ -248,8 +248,8 @@ resource "aws_eventbridge_rule" "detect_ec2_launch" {
   event_bus_name = "default"
 }
 
-resource "aws_eventbridge_target" "detect_ec2_launch" {
-  rule      = aws_eventbridge_rule.detect_ec2_launch.name
+resource "aws_cloudwatch_event_target" "detect_ec2_launch" {
+  rule      = aws_cloudwatch_event_rule.detect_ec2_launch.name
   target_id = "ec2-launch"
   arn       = var.lambda_function_arn
 }
@@ -259,5 +259,5 @@ resource "aws_lambda_permission" "allow_detect_ec2_launch" {
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_eventbridge_rule.detect_ec2_launch.arn
+  source_arn    = aws_cloudwatch_event_rule.detect_ec2_launch.arn
 }

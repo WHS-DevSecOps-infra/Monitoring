@@ -51,21 +51,6 @@ variable "org_trail_name" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "VPC ID for Interface Endpoint creation"
-  type        = string
-}
-
-variable "subnet_ids" {
-  description = "Subnet IDs for Interface Endpoint and Lambda VPC config"
-  type        = list(string)
-}
-
-variable "security_group_ids" {
-  description = "Security Group IDs for Interface Endpoint and Lambda VPC config"
-  type        = list(string)
-}
-
 variable "management_account_id" {
   description = "AWS Account ID of the Management account (CloudTrail producer)"
   type        = string
