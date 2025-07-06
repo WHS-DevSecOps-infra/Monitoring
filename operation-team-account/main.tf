@@ -55,6 +55,7 @@ module "s3" {
   cloudtrail_name  = var.org_trail_name
   aws_region       = var.aws_region
   management_account_id = var.management_account_id
+  organization_id  = var.organization_id
 }
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책

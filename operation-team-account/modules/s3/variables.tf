@@ -17,3 +17,8 @@ variable "management_account_id" {
   description = "AWS Account ID of the Management account (CloudTrail producer)"
   type        = string
 }
+
+variable "organization_id" {
+  description = "AWS Organization ID used for cross-account policies"
+  type        = string
+}
