@@ -33,7 +33,12 @@ variable "lambda_role_arn" {
   type        = string
 }
 
-variable "vpc_endpoint_id" {
-  description = "VPC Endpoint ID for the OpenSearch domain"
-  type        = string
+variable "subnet_ids" {
+  description = "List of subnet IDs for the OpenSearch domain VPC configuration"
+  type        = list(string)
+}
+
+variable "security_group_ids" {
+  description = "List of security group IDs for the OpenSearch domain VPC configuration"
+  type        = list(string)
 }

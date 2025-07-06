@@ -16,12 +16,7 @@ resource "aws_opensearch_domain_policy" "siem_policy" {
       ],
       Resource = [
         "${aws_opensearch_domain.siem.arn}/security-events-*/*"
-      ],
-      Condition = {
-        StringEquals = {
-          "aws:SourceVpce" = var.vpc_endpoint_id
-        }
-      }
+      ]
     }
   ]
 })

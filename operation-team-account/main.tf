@@ -29,14 +29,23 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-# 1) OpenSearch 전용 VPC Endpoint 생성
-resource "aws_vpc_endpoint" "opensearch" {
-  vpc_id              = var.vpc_id
-  service_name        = "com.amazonaws.${var.aws_region}.es"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = var.subnet_ids
-  security_group_ids  = var.security_group_ids
-  private_dns_enabled = true
+# 기본(default) VPC 자동 조회
+data "aws_vpc" "default" {
+  default = true
+}
+
+# 해당 VPC의 모든 서브넷 ID
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+# 해당 VPC의 default 보안 그룹
+data "aws_security_group" "default" {
+  name   = "default"
+  vpc_id = data.aws_vpc.default.id
 }
 
 # 2) S3 모듈: CloudTrail 로그 버킷 + KMS
@@ -58,7 +67,8 @@ module "opensearch" {
   ebs_volume_size        = var.opensearch_ebs_size
   kms_key_arn            = module.s3.kms_key_arn
   lambda_role_arn        = module.lambda.lambda_function_role_arn
-  vpc_endpoint_id        = aws_vpc_endpoint.opensearch.id
+  subnet_ids            = [ data.aws_subnets.default.ids[0] ]
+  security_group_ids    = [data.aws_security_group.default.id]
 }
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
@@ -70,9 +80,9 @@ module "lambda" {
   opensearch_endpoint    = module.opensearch.endpoint
   slack_webhook_url      = var.slack_webhook_url
   kms_key_arn            = module.s3.kms_key_arn
-  bucket_arn           = module.s3.bucket_arn
-  lambda_subnet_ids         = var.subnet_ids
-  lambda_security_group_ids = var.security_group_ids
+  bucket_arn             = module.s3.bucket_arn
+  lambda_subnet_ids          = [ data.aws_subnets.default.ids[0] ]
+  lambda_security_group_ids = [data.aws_security_group.default.id]
 }
 
 # 5) EventBridge 모듈: S3 PutObject → Lambda 트리거

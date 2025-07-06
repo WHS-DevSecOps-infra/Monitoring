@@ -5,8 +5,10 @@ resource "aws_kms_key" "cloudtrail" {
   enable_key_rotation = true
 
   policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [
+
+      # 1) 루트 계정 (운영 계정) 전 권한
       {
         Sid       = "AllowRootAccountFullAccess"
         Effect    = "Allow"
@@ -16,21 +18,32 @@ resource "aws_kms_key" "cloudtrail" {
         Action   = "kms:*"
         Resource = "*"
       },
+
+      # 2) CloudTrail 서비스에 필요한 KMS 호출 일체 허용
       {
         Sid       = "AllowCloudTrailUseOfTheKey"
         Effect    = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
         }
-        Action   = [
+        Action = [
           "kms:GenerateDataKey*",
-          "kms:Decrypt"
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:DescribeKey"
         ]
         Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:CallerAccount" = var.management_account_id,
+            "kms:ViaService"    = "cloudtrail.${var.aws_region}.amazonaws.com"
+          }
+        }
       }
     ]
   })
 }
+
 
 resource "aws_s3_bucket" "logs" {
   bucket = var.bucket_name
@@ -107,16 +120,4 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
       days = 30
     }
   }
-}
-
-output "bucket_name" {
-  value = aws_s3_bucket.logs.bucket
-}
-
-output "bucket_arn" {
-  value = aws_s3_bucket.logs.arn
-}
-
-output "kms_key_arn" {
-  value = aws_kms_key.cloudtrail.arn
 }
