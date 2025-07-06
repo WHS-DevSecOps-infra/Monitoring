@@ -4,21 +4,21 @@ variable "bucket_name" {
 }
 
 variable "cloudtrail_name" {
-  description = "Name of the CloudTrail trail in the management account"
+  description = "Name of the CloudTrail (for tag, optional)"
   type        = string
 }
 
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS Region"
   type        = string
 }
 
 variable "management_account_id" {
-  description = "AWS Account ID of the Management account (CloudTrail producer)"
+  description = "Management account AWS ID"
   type        = string
 }
 
 variable "organization_id" {
-  description = "AWS Organization ID used for cross-account policies"
+  description = "Organization ID (for cross-account policy, optional)"
   type        = string
 }
