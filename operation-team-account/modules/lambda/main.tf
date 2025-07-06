@@ -21,9 +21,9 @@ resource "aws_iam_role_policy" "lambda_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "AllowCloudWatchLogs"
-        Effect   = "Allow"
-        Action   = [
+        Sid    = "AllowCloudWatchLogs"
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents"
@@ -31,9 +31,9 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = "*"
       },
       {
-        Sid      = "AllowOpenSearchAccess"
-        Effect   = "Allow"
-        Action   = [
+        Sid    = "AllowOpenSearchAccess"
+        Effect = "Allow"
+        Action = [
           "es:ESHttpPost",
           "es:ESHttpPut",
           "es:ESHttpGet"

@@ -50,12 +50,12 @@ data "aws_security_group" "default" {
 
 # 2) S3 모듈: CloudTrail 로그 버킷 + KMS
 module "s3" {
-  source           = "./modules/s3"
-  bucket_name      = var.cloudtrail_bucket_name
-  cloudtrail_name  = var.org_trail_name
-  aws_region       = var.aws_region
+  source                = "./modules/s3"
+  bucket_name           = var.cloudtrail_bucket_name
+  cloudtrail_name       = var.org_trail_name
+  aws_region            = var.aws_region
   management_account_id = var.management_account_id
-  organization_id  = var.organization_id
+  organization_id       = var.organization_id
 }
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책
@@ -68,21 +68,21 @@ module "opensearch" {
   ebs_volume_size        = var.opensearch_ebs_size
   kms_key_arn            = module.s3.kms_key_arn
   lambda_role_arn        = module.lambda.lambda_function_role_arn
-  subnet_ids            = [ data.aws_subnets.default.ids[0] ]
-  security_group_ids    = [data.aws_security_group.default.id]
+  subnet_ids             = [data.aws_subnets.default.ids[0]]
+  security_group_ids     = [data.aws_security_group.default.id]
 }
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
 module "lambda" {
-  source                 = "./modules/lambda"
-  lambda_function_name   = "cloudtrail-log-processor"
-  lambda_zip_path        = "./lambda/lambda_package.zip"
-  opensearch_domain_arn  = module.opensearch.domain_arn
-  opensearch_endpoint    = module.opensearch.endpoint
-  slack_webhook_url      = var.slack_webhook_url
-  kms_key_arn            = module.s3.kms_key_arn
-  bucket_arn             = module.s3.bucket_arn
-  lambda_subnet_ids          = [ data.aws_subnets.default.ids[0] ]
+  source                    = "./modules/lambda"
+  lambda_function_name      = "cloudtrail-log-processor"
+  lambda_zip_path           = "./lambda/lambda_package.zip"
+  opensearch_domain_arn     = module.opensearch.domain_arn
+  opensearch_endpoint       = module.opensearch.endpoint
+  slack_webhook_url         = var.slack_webhook_url
+  kms_key_arn               = module.s3.kms_key_arn
+  bucket_arn                = module.s3.bucket_arn
+  lambda_subnet_ids         = [data.aws_subnets.default.ids[0]]
   lambda_security_group_ids = [data.aws_security_group.default.id]
 }
 
