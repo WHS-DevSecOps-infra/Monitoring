@@ -1,13 +1,3 @@
-data "terraform_remote_state" "operation" {
-  backend = "s3"
-  config = {
-    bucket  = "cloudfence-operation-s3"
-    key     = "monitoring/terraform.tfstate"
-    region  = "ap-northeast-2"
-    profile = "whs-sso-operation"
-  }
-}
-
 terraform {
   required_version = ">= 1.1.0"
   required_providers {
@@ -16,6 +6,7 @@ terraform {
       version = "~> 5.0"
     }
   }
+
   backend "s3" {
     bucket         = "cloudfence-management-s3"
     key            = "cloudtrail/terraform.tfstate"
@@ -31,9 +22,19 @@ provider "aws" {
   profile = "whs-sso-management"
 }
 
+data "terraform_remote_state" "operation" {
+  backend = "s3"
+  config = {
+    bucket  = "cloudfence-operation-s3"
+    key     = "monitoring/terraform.tfstate"
+    region  = "ap-northeast-2"
+    profile = "whs-sso-operation"
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
-resource "aws_cloudtrail" "org" {
+resource "aws_cloudtrail" "organization" {
   name                          = var.org_trail_name
   is_organization_trail         = true
   is_multi_region_trail         = true
@@ -41,8 +42,8 @@ resource "aws_cloudtrail" "org" {
   enable_log_file_validation    = true
   enable_logging                = true
 
-  s3_bucket_name                = var.destination_s3_bucket_name
-  kms_key_id                    = var.s3_kms_key_arn
+  s3_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
+  kms_key_id     = data.terraform_remote_state.operation.outputs.kms_key_arn
 
   tags = {
     Name        = var.org_trail_name
