@@ -1,33 +1,31 @@
 data "aws_caller_identity" "current" {}
 
-variable "bucket_name" { type = string }
-
 resource "aws_kms_key" "cloudtrail" {
   description         = "KMS key for encrypting CloudTrail logs"
   enable_key_rotation = true
 
   policy = jsonencode({
-    Version   = "2012-10-17",
+    Version   = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowRootAccountFullAccess",
-        Effect    = "Allow",
+        Sid       = "AllowRootAccountFullAccess"
+        Effect    = "Allow"
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        },
-        Action   = "kms:*",
+        }
+        Action   = "kms:*"
         Resource = "*"
       },
       {
-        Sid       = "AllowCloudTrailUseOfTheKey",
-        Effect    = "Allow",
+        Sid       = "AllowCloudTrailUseOfTheKey"
+        Effect    = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
-        },
+        }
         Action   = [
           "kms:GenerateDataKey*",
           "kms:Decrypt"
-        ],
+        ]
         Resource = "*"
       }
     ]
@@ -68,30 +66,30 @@ resource "aws_s3_bucket_public_access_block" "block" {
 resource "aws_s3_bucket_policy" "cloudtrail" {
   bucket = aws_s3_bucket.logs.id
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version   = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudTrailAclCheck",
-        Effect    = "Allow",
-        Principal = { Service = "cloudtrail.amazonaws.com" },
-        Action    = "s3:GetBucketAcl",
+        Sid       = "AllowCloudTrailAclCheck"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:GetBucketAcl"
         Resource  = aws_s3_bucket.logs.arn
       },
       {
-  Sid       = "AllowCloudTrailWrite",
-  Effect    = "Allow",
-  Principal = { Service = "cloudtrail.amazonaws.com" },
-  Action    = "s3:PutObject",
-  Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*",
-  Condition = {
-  StringEquals = {
-    "aws:SourceArn"              = "arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/${var.cloudtrail_name}"
-    "s3:x-amz-server-side-encryption" = "aws:kms"
-    "s3:x-amz-acl"                    = "bucket-owner-full-control"
-  }
-}
-
-}
+        Sid       = "AllowCloudTrailWrite"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*"
+        Condition = {
+          StringEquals = {
+            # management 계정의 CloudTrail ARN
+            "aws:SourceArn" = "arn:aws:cloudtrail:${var.aws_region}:${var.management_account_id}:trail/${var.cloudtrail_name}"
+            "s3:x-amz-server-side-encryption" = "aws:kms"
+            "s3:x-amz-acl"                    = "bucket-owner-full-control"
+          }
+        }
+      }
     ]
   })
 }
@@ -121,9 +119,4 @@ output "bucket_arn" {
 
 output "kms_key_arn" {
   value = aws_kms_key.cloudtrail.arn
-}
-
-variable "aws_region" {
-  type        = string
-  description = "AWS region in use"
 }

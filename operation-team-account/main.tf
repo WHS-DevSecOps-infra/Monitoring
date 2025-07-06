@@ -1,5 +1,3 @@
-data "aws_caller_identity" "current" {}
-
 terraform {
   required_version = ">= 1.1.0"
   required_providers {
@@ -8,7 +6,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
   backend "s3" {
     bucket         = "cloudfence-operation-s3"
     key            = "monitoring/terraform.tfstate"
@@ -30,31 +27,28 @@ provider "aws" {
   profile = "whs-sso-management"
 }
 
+data "aws_caller_identity" "current" {}
+
+# 1) OpenSearch 전용 VPC Endpoint 생성
+resource "aws_vpc_endpoint" "opensearch" {
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.es"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.subnet_ids
+  security_group_ids  = var.security_group_ids
+  private_dns_enabled = true
+}
+
+# 2) S3 모듈: CloudTrail 로그 버킷 + KMS
 module "s3" {
   source           = "./modules/s3"
   bucket_name      = var.cloudtrail_bucket_name
   cloudtrail_name  = var.org_trail_name
-  aws_region = var.aws_region
+  aws_region       = var.aws_region
+  management_account_id = var.management_account_id
 }
 
-module "detection" {
-  source              = "./modules/detection"
-  sns_topic_name      = var.alerts_sns_topic
-  lambda_function_name = "eventbridge-processor"
-  opensearch_domain_endpoint = module.opensearch.endpoint
-  slack_webhook_url   = var.slack_webhook_url
-  lambda_zip_path     = "./lambda/lambda_package.zip"
-  kms_key_arn            = module.s3.kms_key_arn
-  opensearch_domain_arn = module.opensearch.domain_arn
-  aws_region = var.aws_region
-}
-
-output "opensearch_vpc_endpoint_id" {
-  value       = aws_vpc_endpoint.opensearch.id
-  description = "The ID of the VPC endpoint for OpenSearch"
-}
-
-
+# 3) OpenSearch 모듈: 도메인 생성 + 접근 정책
 module "opensearch" {
   source                 = "./modules/opensearch"
   domain_name            = var.opensearch_domain_name
@@ -63,12 +57,28 @@ module "opensearch" {
   cluster_instance_count = var.opensearch_instance_count
   ebs_volume_size        = var.opensearch_ebs_size
   kms_key_arn            = module.s3.kms_key_arn
-  lambda_role_arn        = module.detection.lambda_function_role_arn
-  vpc_endpoint_id = module.network.opensearch_vpc_endpoint_id
+  lambda_role_arn        = module.lambda.lambda_function_role_arn
+  vpc_endpoint_id        = aws_vpc_endpoint.opensearch.id
 }
 
-module "network" {
-  source     = "./modules/network"
-  aws_region = var.aws_region
+# 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
+module "lambda" {
+  source                 = "./modules/lambda"
+  lambda_function_name   = "cloudtrail-log-processor"
+  lambda_zip_path        = "./lambda/lambda_package.zip"
+  opensearch_domain_arn  = module.opensearch.domain_arn
+  opensearch_endpoint    = module.opensearch.endpoint
+  slack_webhook_url      = var.slack_webhook_url
+  kms_key_arn            = module.s3.kms_key_arn
+  bucket_arn           = module.s3.bucket_arn
+  lambda_subnet_ids         = var.subnet_ids
+  lambda_security_group_ids = var.security_group_ids
 }
 
+# 5) EventBridge 모듈: S3 PutObject → Lambda 트리거
+module "eventbridge" {
+  source               = "./modules/eventbridge"
+  bucket_name          = module.s3.bucket_name
+  lambda_function_name = module.lambda.lambda_function_name
+  lambda_function_arn  = module.lambda.lambda_function_arn
+}

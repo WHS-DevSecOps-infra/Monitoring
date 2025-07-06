@@ -1,10 +1,3 @@
-variable "domain_name"           { type = string }
-variable "engine_version"        { type = string }
-variable "cluster_instance_type" { type = string }
-variable "cluster_instance_count"{ type = number }
-variable "ebs_volume_size"       { type = number }
-variable "kms_key_arn"           { type = string }
-
 resource "aws_opensearch_domain" "siem" {
   domain_name    = "siem-${var.domain_name}"
   engine_version = var.engine_version
@@ -42,8 +35,4 @@ resource "aws_opensearch_domain" "siem" {
 
 output "endpoint" {
   value = aws_opensearch_domain.siem.endpoint
-}
-
-output "domain_arn" {
-  value = aws_opensearch_domain.siem.arn
 }
