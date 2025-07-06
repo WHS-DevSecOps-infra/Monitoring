@@ -40,17 +40,6 @@ variable "opensearch_ebs_size" {
   default     = 10
 }
 
-variable "alerts_sns_topic" {
-  description = "SNS topic name for security alerts"
-  type        = string
-  default     = "whs-security-alerts"
-}
-
-variable "management_account_id" {
-  description = "Management AWS Account ID"
-  type        = string
-}
-
 variable "slack_webhook_url" {
   description = "Slack Webhook URL for notifications"
   type        = string
@@ -63,13 +52,21 @@ variable "org_trail_name" {
 }
 
 variable "vpc_id" {
-  type = string
+  description = "VPC ID for Interface Endpoint creation"
+  type        = string
 }
 
 variable "subnet_ids" {
-  type = list(string)
+  description = "Subnet IDs for Interface Endpoint and Lambda VPC config"
+  type        = list(string)
 }
 
 variable "security_group_ids" {
-  type = list(string)
+  description = "Security Group IDs for Interface Endpoint and Lambda VPC config"
+  type        = list(string)
+}
+
+variable "management_account_id" {
+  description = "AWS Account ID of the Management account (CloudTrail producer)"
+  type        = string
 }

@@ -1,8 +1,3 @@
-variable "lambda_role_arn" {
-  description = "ARN of the Lambda execution role"
-  type        = string
-}
-
 resource "aws_opensearch_domain_policy" "siem_policy" {
   domain_name = aws_opensearch_domain.siem.domain_name
 
@@ -20,7 +15,7 @@ resource "aws_opensearch_domain_policy" "siem_policy" {
         "es:ESHttpGet"
       ],
       Resource = [
-        "${aws_opensearch_domain.siem.arn}/security-events-*"
+        "${aws_opensearch_domain.siem.arn}/security-events-*/*"
       ],
       Condition = {
         StringEquals = {
