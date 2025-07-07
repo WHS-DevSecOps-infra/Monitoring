@@ -9,7 +9,7 @@ resource "aws_kms_key" "cloudtrail" {
     Version = "2012-10-17",
     Statement = [
       {
-        Sid = "Enable management & operation root access",
+        Sid    = "Enable management & operation root access",
         Effect = "Allow",
         Principal = {
           AWS = [
@@ -17,11 +17,11 @@ resource "aws_kms_key" "cloudtrail" {
             "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
           ]
         },
-        Action = "kms:*",
+        Action   = "kms:*",
         Resource = "*"
       },
       {
-        Sid = "Allow CloudTrail org trail use of the key",
+        Sid    = "Allow CloudTrail org trail use of the key",
         Effect = "Allow",
         Principal = {
           Service = "cloudtrail.amazonaws.com"
@@ -35,12 +35,12 @@ resource "aws_kms_key" "cloudtrail" {
         Condition = {
           StringEquals = {
             "kms:CallerAccount" : "${var.management_account_id}",
-            "kms:ViaService"    : "cloudtrail.${var.aws_region}.amazonaws.com"
+            "kms:ViaService" : "cloudtrail.${var.aws_region}.amazonaws.com"
           }
         }
       },
       {
-        Sid = "Allow CloudTrail S3 encryption access",
+        Sid    = "Allow CloudTrail S3 encryption access",
         Effect = "Allow",
         Principal = {
           Service = "cloudtrail.amazonaws.com"
@@ -56,7 +56,7 @@ resource "aws_kms_key" "cloudtrail" {
         Condition = {
           StringEquals = {
             "kms:CallerAccount" : "${var.management_account_id}",
-            "kms:ViaService"    : "s3.${var.aws_region}.amazonaws.com"
+            "kms:ViaService" : "s3.${var.aws_region}.amazonaws.com"
           }
         }
       }
@@ -146,7 +146,7 @@ resource "aws_s3_bucket_policy" "allow_cloudtrail" {
             "arn:aws:iam::${var.management_account_id}:root"
           ]
         },
-        Action = ["s3:ListBucket"],
+        Action   = ["s3:ListBucket"],
         Resource = "${aws_s3_bucket.cloudtrail_logs.arn}"
       }
     ]
