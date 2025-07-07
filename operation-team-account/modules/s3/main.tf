@@ -1,5 +1,6 @@
 data "aws_caller_identity" "current" {}
 
+# KMS 키 생성 (CloudTrail 로그 암호화용)
 resource "aws_kms_key" "cloudtrail" {
   description         = "KMS key for encrypting CloudTrail logs"
   enable_key_rotation = true
@@ -7,39 +8,55 @@ resource "aws_kms_key" "cloudtrail" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      # 운영 계정 루트에게 전체 권한
       {
-        Sid    = "AllowRootAccountFullAccess"
-        Effect = "Allow"
+        Sid = "Enable management & operation root access",
+        Effect = "Allow",
         Principal = {
           AWS = [
-            "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root", # Operation root
-            "arn:aws:iam::${var.management_account_id}:root"                    # Management root
+            "arn:aws:iam::${var.management_account_id}:root",
+            "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
           ]
-        }
-        Action   = "kms:*"
+        },
+        Action = "kms:*",
         Resource = "*"
       },
-      # CloudTrail 서비스에서 KMS 키 사용 허용 (management account)
       {
-        Sid    = "AllowCloudTrailFromMgmtToUseKMS"
-        Effect = "Allow"
+        Sid = "Allow CloudTrail org trail use of the key",
+        Effect = "Allow",
         Principal = {
           Service = "cloudtrail.amazonaws.com"
-        }
+        },
         Action = [
           "kms:GenerateDataKey*",
           "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:DescribeKey",
-          "kms:ListKeys",
-          "kms:Encrypt",
-          "kms:ListAliases"
-        ]
-        Resource = "*"
+          "kms:DescribeKey"
+        ],
+        Resource = "*",
         Condition = {
           StringEquals = {
-            "kms:CallerAccount" : "${var.management_account_id}"
+            "kms:CallerAccount" : "${var.management_account_id}",
+            "kms:ViaService"    : "cloudtrail.${var.aws_region}.amazonaws.com"
+          }
+        }
+      },
+      {
+        Sid = "Allow CloudTrail S3 encryption access",
+        Effect = "Allow",
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        },
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Encrypt",
+          "kms:ReEncrypt*",
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ],
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "kms:CallerAccount" : "${var.management_account_id}",
+            "kms:ViaService"    : "s3.${var.aws_region}.amazonaws.com"
           }
         }
       }
@@ -78,6 +95,7 @@ resource "aws_s3_bucket_public_access_block" "cloudtrail_logs" {
 
 resource "aws_s3_bucket_versioning" "this" {
   bucket = aws_s3_bucket.cloudtrail_logs.id
+
   versioning_configuration {
     status = "Enabled"
   }
@@ -98,14 +116,14 @@ resource "aws_s3_bucket_policy" "allow_cloudtrail" {
   bucket = aws_s3_bucket.cloudtrail_logs.id
 
   policy = jsonencode({
-    Version : "2012-10-17",
+    Version = "2012-10-17",
     Statement = [
       {
         Sid       = "AWSCloudTrailWrite",
         Effect    = "Allow",
         Principal = { "Service" : "cloudtrail.amazonaws.com" },
         Action    = "s3:PutObject",
-        Resource  = "${aws_s3_bucket.cloudtrail_logs.arn}/AWSLogs/${var.organization_id}/*",
+        Resource  = "${aws_s3_bucket.cloudtrail_logs.arn}/AWSLogs/${var.management_account_id}/*",
         Condition = {
           StringEquals = {
             "s3:x-amz-acl" = "bucket-owner-full-control"
@@ -128,12 +146,9 @@ resource "aws_s3_bucket_policy" "allow_cloudtrail" {
             "arn:aws:iam::${var.management_account_id}:root"
           ]
         },
-        Action = [
-          "s3:ListBucket"
-        ],
+        Action = ["s3:ListBucket"],
         Resource = "${aws_s3_bucket.cloudtrail_logs.arn}"
       }
     ]
-    }
-  )
+  })
 }
