@@ -28,6 +28,14 @@ jobs:
               - 'identity-team-account/**'
             prod:
               - 'prod-team-account/**'
+            dev:
+              - 'dev-team-account/**'
+            security:
+              - 'security-team-account/**'
+            stage:
+              - 'stage-team-account/**'
+            management:
+              - 'management-team-account/**'
 
       - name: Build Matrix from Filter (with subdirs)
         id: set
@@ -59,9 +67,19 @@ jobs:
             if [ "$VALUE" = "true" ]; then
               BASE_DIR="${KEY}-team-account"
 
+              # 루트 디렉터리 검사
+              TF_COUNT_ROOT=$(find "$BASE_DIR" -maxdepth 1 -name '*.tf' | wc -l)
+              if [ "$TF_COUNT_ROOT" -gt 0 ]; then
+                MATRIX_ITEMS+=("{\"dir\":\"$BASE_DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
+              fi
+
+              # 하위 디렉터리 검사
               for DIR in $(find $BASE_DIR -type d -mindepth 1); do
-                if [[ "$DIR" != *".terraform"* ]]; then
-                  MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
+                if [[ "$DIR" != *".terraform"* && "$DIR" != "$BASE_DIR/modules" ]]; then
+                  TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
+                  if [ "$TF_COUNT" -gt 0 ]; then
+                    MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
+                  fi
                 fi
               done
             fi
