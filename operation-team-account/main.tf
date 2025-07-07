@@ -76,7 +76,7 @@ module "opensearch" {
 module "lambda" {
   source                    = "./modules/lambda"
   lambda_function_name      = "cloudtrail-log-processor"
-  lambda_zip_path           = "./lambda/lambda_package.zip"
+  lambda_zip_path           = "./modules/lambda/lambda_package.zip"
   opensearch_domain_arn     = module.opensearch.domain_arn
   opensearch_endpoint       = module.opensearch.endpoint
   slack_webhook_url         = var.slack_webhook_url
