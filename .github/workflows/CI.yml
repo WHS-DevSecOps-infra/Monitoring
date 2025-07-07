@@ -1,4 +1,4 @@
-name: Monitoring CI
+name: Organization CI
 
 on:
   pull_request:
@@ -7,6 +7,10 @@ on:
       - "operation-team-account/**"
       - "identity-team-account/**"
       - "prod-team-account/**"
+      - "dev-team-account/**"
+      - "security-team-account/**"
+      - "stage-team-account/**"
+      - "management-team-account/**"
 
 permissions:
   contents: read
@@ -34,22 +38,37 @@ jobs:
           echo "Changed files:"
           echo "$FILES"
 
-          declare -A ROLE_MAP=(
+          declare -A ROLE_MAP=( 
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
             ["prod-team-account"]="ROLE_ARN_PROD"
+            ["dev-team-account"]="ROLE_ARN_DEV"
+            ["security-team-account"]="ROLE_ARN_SECURITY"
+            ["stage-team-account"]="ROLE_ARN_STAGE"
+            ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
           TMP_FILE=$(mktemp)
 
           for FILE in $FILES; do
-            # ex) identity-team-account/S3/main.tf
             DIR=$(dirname "$FILE")
             TOP_DIR=$(echo $DIR | cut -d/ -f1)
             ROLE_KEY="${ROLE_MAP[$TOP_DIR]}"
 
             if [ -n "$ROLE_KEY" ]; then
-              echo "$DIR|$ROLE_KEY" >> $TMP_FILE
+              # 루트 디렉터리
+              if [ "$DIR" == "$TOP_DIR" ]; then
+                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
+                if [ "$TF_COUNT" -gt 0 ]; then
+                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
+                fi
+              else
+                # 하위 디렉터리
+                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
+                if [ "$TF_COUNT" -gt 0 ]; then
+                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
+                fi
+              fi
             fi
           done
 
