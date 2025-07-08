@@ -2,24 +2,24 @@ name: Terraform Apply
 
 on:
   push:
-    branches: [main]
+    branches: [main] # main 브랜치에 push될 때 실행
 
 permissions:
-  contents: read
-  id-token: write
+  contents: read # 코드 리포지토리 읽기 권한
+  id-token: write # OIDC 인증을 위한 ID 토큰 발급 권한
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set.outputs.matrix }}
+      matrix: ${{ steps.set.outputs.matrix }} # 다음 job에 전달할 matrix 출력
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3 # 현재 리포지토리 코드 체크아웃
 
       - name: Filter Paths
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v3 # 어떤 디렉토리에 변경이 있는지 필터링
         with:
           filters: |
             operation:
@@ -40,6 +40,7 @@ jobs:
       - name: Build Matrix from Filter (with subdirs)
         id: set
         env:
+          # 필터링된 결과를 환경변수로 받아옴
           FILTER_OUTPUTS_operation: ${{ steps.filter.outputs.operation }}
           FILTER_OUTPUTS_identity: ${{ steps.filter.outputs.identity }}
           FILTER_OUTPUTS_prod: ${{ steps.filter.outputs.prod }}
@@ -48,6 +49,7 @@ jobs:
           FILTER_OUTPUTS_stage: ${{ steps.filter.outputs.stage }}
           FILTER_OUTPUTS_management: ${{ steps.filter.outputs.management }}
         run: |
+          # 계정 별 IAM Role Key 매핑
           declare -A ROLE_MAP=(
             ["operation"]="ROLE_ARN_OPERATION"
             ["identity"]="ROLE_ARN_IDENTITY"
@@ -60,31 +62,23 @@ jobs:
 
           MATRIX_ITEMS=()
 
+          # 변경된 경로에 따라 matrix 구성
           for KEY in "${!ROLE_MAP[@]}"; do
             VAR_NAME="FILTER_OUTPUTS_${KEY}"
             VALUE="${!VAR_NAME}"
 
             if [ "$VALUE" = "true" ]; then
               BASE_DIR="${KEY}-team-account"
-
-              # 루트 디렉터리 검사
-              TF_COUNT_ROOT=$(find "$BASE_DIR" -maxdepth 1 -name '*.tf' | wc -l)
-              if [ "$TF_COUNT_ROOT" -gt 0 ]; then
-                MATRIX_ITEMS+=("{\"dir\":\"$BASE_DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
-              fi
-
-              # 하위 디렉터리 검사
+              # 하위 디렉토리 순회 (단, .terraform은 제외)
               for DIR in $(find $BASE_DIR -type d -mindepth 1); do
-                if [[ "$DIR" != *".terraform"* && "$DIR" != "$BASE_DIR/modules" ]]; then
-                  TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
-                  if [ "$TF_COUNT" -gt 0 ]; then
-                    MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
-                  fi
+                if [[ "$DIR" != *".terraform"* ]]; then
+                  MATRIX_ITEMS+=("{\"dir\":\"$DIR\",\"role_key\":\"${ROLE_MAP[$KEY]}\"}")
                 fi
               done
             fi
           done
 
+          # 최종 matrix JSON 출력
           if [ ${#MATRIX_ITEMS[@]} -eq 0 ]; then
             echo "matrix=[]" >> $GITHUB_OUTPUT
           else
@@ -93,14 +87,14 @@ jobs:
           fi
 
   terraform-apply:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    needs: detect-changes # detect-changes job 이후 실행
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }} # 변경사항이 있을 경우에만 실행
     runs-on: ubuntu-latest
 
     strategy:
-      matrix:
+      matrix: # matrix 기반 반복 실행
         include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
-      fail-fast: false
+      fail-fast: false # 하나 실패해도 나머지 job은 계속 진행
 
     steps:
       - name: Checkout repository
@@ -110,17 +104,17 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
-          role-to-assume: ${{ secrets[matrix.role_key] }}
+          role-to-assume: ${{ secrets[matrix.role_key] }} # OIDC 기반으로 계정별 IAM Role Assume
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.4.0
+          terraform_version: 1.4.0 # Terraform 버전 명시
 
       - name: Terraform Init
-        run: terraform init
-        working-directory: ${{ matrix.dir }}
+        run: terraform init # Terraform 초기화: 백엔드 설정 및 provider 다운로드
+        working-directory: ${{ matrix.dir }} # matrix로 전달된 디렉토리에서 실행
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve # 사용자 승인 없이 자동 적용
         working-directory: ${{ matrix.dir }}
