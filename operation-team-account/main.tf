@@ -57,6 +57,7 @@ module "s3" {
   source      = "./modules/s3"
   bucket_name = var.cloudtrail_bucket_name
   aws_region  = var.aws_region
+  kms_alias_name = var.kms_alias_name
   management_account_id = data.aws_caller_identity.management.account_id
 }
 

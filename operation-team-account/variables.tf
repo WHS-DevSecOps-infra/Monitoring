@@ -49,4 +49,11 @@ variable "slack_webhook_url" {
 variable "org_trail_name" {
   description = "Name of the organization CloudTrail trail"
   type        = string
+  default     = "org-cloudtrail"
+}
+
+variable "kms_alias_name" {
+  description = "KMS key alias for CloudTrail logs"
+  type        = string
+  default     = "alias/cloudtrail-logs"
 }
