@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "cloudfence-management-s3"
+    bucket         = "cloudfence-management-state"
     key            = "cloudtrail/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true
