@@ -52,6 +52,7 @@ data "aws_security_group" "default" {
 module "s3" {
   source      = "./modules/s3"
   bucket_name = var.cloudtrail_bucket_name
+  aws_region  = var.aws_region
 }
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책

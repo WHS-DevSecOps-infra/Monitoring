@@ -42,7 +42,8 @@ resource "aws_cloudtrail" "org" {
   enable_log_file_validation    = true
   enable_logging                = true
 
-  s3_bucket_name = var.cloudtrail_bucket_name
+  s3_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
+  kms_key_id     = data.terraform_remote_state.operation.outputs.kms_key_arn
 
   tags = {
     Name        = var.org_trail_name

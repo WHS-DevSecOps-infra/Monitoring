@@ -1,6 +1,39 @@
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "cloudtrail" {
   description             = "KMS key for encrypting CloudTrail logs in S3"
   deletion_window_in_days = 30
+
+  # 키 정책: 계정 루트 + CloudTrail 서비스 허용
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # 이 KMS 키를 만든 계정(root)이 모든 작업을 할 수 있도록
+      {
+        Sid       = "AllowAccountRootFullAccess"
+        Effect    = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+
+      # CloudTrail 서비스가 이 키로 암호화 작업을 할 수 있도록
+      {
+        Sid       = "AllowCloudTrailUseOfKey"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_s3_bucket" "logs" {
@@ -40,7 +73,7 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # 1) ACL 확인 허용
+      # ACL 확인 허용
       {
         Sid       = "AllowCloudTrailAclCheck"
         Effect    = "Allow"
@@ -49,7 +82,7 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
         Resource  = aws_s3_bucket.logs.arn
       },
 
-      # 2) 로그 쓰기 + bucket-owner-full-control ACL 조건
+      # 로그 쓰기 + bucket-owner-full-control ACL 조건
       {
         Sid       = "AllowCloudTrailWrite"
         Effect    = "Allow"
