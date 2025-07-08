@@ -25,7 +25,7 @@ provider "aws" {
 data "terraform_remote_state" "operation" {
   backend = "s3"
   config = {
-    bucket  = "cloudfence-operation-s3"
+    bucket  = "cloudfence-operation-state"
     key     = "monitoring/terraform.tfstate"
     region  = "ap-northeast-2"
     profile = "whs-sso-operation"

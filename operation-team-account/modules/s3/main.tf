@@ -8,19 +8,6 @@ resource "aws_kms_key" "cloudtrail" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        Sid       = "DenyInsecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource = [
-          aws_s3_bucket.logs.arn,
-          "${aws_s3_bucket.logs.arn}/*"
-        ]
-        Condition = {
-          Bool = { "aws:SecureTransport" = "false" }
-        }
-      },
       # 이 KMS 키를 만든 계정(root)이 모든 작업을 할 수 있도록
       {
         Sid    = "AllowAccountRootFullAccess"
@@ -49,22 +36,14 @@ resource "aws_kms_key" "cloudtrail" {
             "kms:ViaService" = "cloudtrail.ap-northeast-2.amazonaws.com"
           }
         }
-      },
-       {
-        Sid       = "AllowCloudTrailWrite"
-        Effect    = "Allow"
-        Principal = { Service = "cloudtrail.amazonaws.com" }
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/${var.management_account_id}/*"
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = var.management_account_id
-            "s3:x-amz-acl"      = "bucket-owner-full-control"
-          }
-        }
       }
     ]
   })
+}
+
+resource "aws_kms_alias" "cloudtrail" {
+  name          = var.kms_alias_name
+  target_key_id = aws_kms_key.cloudtrail.key_id
 }
 
 resource "aws_s3_bucket" "logs" {
@@ -104,6 +83,20 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # 0) HTTPS 아닌 요청 모두 거부
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.logs.arn,
+          "${aws_s3_bucket.logs.arn}/*"
+        ]
+        Condition = {
+          Bool = { "aws:SecureTransport" = "false" }
+        }
+      },
       # ACL 확인 허용
       {
         Sid       = "AllowCloudTrailAclCheck"
@@ -112,17 +105,17 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
         Action    = "s3:GetBucketAcl"
         Resource  = aws_s3_bucket.logs.arn
       },
-
       # 로그 쓰기 + bucket-owner-full-control ACL 조건
-      {
+       {
         Sid       = "AllowCloudTrailWrite"
         Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
         Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*"
+        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/${var.management_account_id}/*"
         Condition = {
           StringEquals = {
-            "s3:x-amz-acl" = "bucket-owner-full-control"
+            "aws:SourceAccount" = var.management_account_id
+            "s3:x-amz-acl"      = "bucket-owner-full-control"
           }
         }
       }
