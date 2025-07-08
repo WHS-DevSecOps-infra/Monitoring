@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket         = "cloudfence-operation-s3"
+    bucket         = "cloudfence-operation-state"
     key            = "monitoring/terraform.tfstate"
     region         = "ap-northeast-2"
     encrypt        = true
