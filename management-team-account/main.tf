@@ -34,7 +34,7 @@ data "terraform_remote_state" "operation" {
 
 data "aws_caller_identity" "current" {}
 
-resource "aws_cloudtrail" "organization" {
+resource "aws_cloudtrail" "org" {
   name                          = var.org_trail_name
   is_organization_trail         = true
   is_multi_region_trail         = true
@@ -42,8 +42,7 @@ resource "aws_cloudtrail" "organization" {
   enable_log_file_validation    = true
   enable_logging                = true
 
-  s3_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
-  kms_key_id     = data.terraform_remote_state.operation.outputs.kms_key_arn
+  s3_bucket_name = var.cloudtrail_bucket_name
 
   tags = {
     Name        = var.org_trail_name
