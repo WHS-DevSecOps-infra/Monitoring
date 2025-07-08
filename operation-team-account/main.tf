@@ -48,11 +48,16 @@ data "aws_security_group" "default" {
   vpc_id = data.aws_vpc.default.id
 }
 
+data "aws_caller_identity" "management" {
+  provider = aws.management
+}
+
 # 2) S3 모듈: CloudTrail 로그 버킷 + KMS
 module "s3" {
   source      = "./modules/s3"
   bucket_name = var.cloudtrail_bucket_name
   aws_region  = var.aws_region
+  management_account_id = data.aws_caller_identity.management.account_id
 }
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책

@@ -35,8 +35,8 @@ data "terraform_remote_state" "operation" {
 data "aws_caller_identity" "current" {}
 
 module "cloudtrail" {
-  source                  = "./modules/cloudtrail"
-  org_trail_name          = var.org_trail_name
-  cloudtrail_bucket_name  = data.terraform_remote_state.operation.outputs.bucket_name
-  cloudtrail_kms_key_arn  = data.terraform_remote_state.operation.outputs.kms_key_arn
+  source                 = "./modules/cloudtrail"
+  org_trail_name         = var.org_trail_name
+  cloudtrail_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
+  cloudtrail_kms_key_arn = data.terraform_remote_state.operation.outputs.kms_key_arn
 }
