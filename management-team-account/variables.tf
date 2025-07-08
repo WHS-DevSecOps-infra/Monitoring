@@ -1,14 +1,11 @@
 variable "aws_region" {
-  description = "AWS 리전"
+  description = "AWS region"
   type        = string
+  default     = "ap-northeast-2"
 }
 
 variable "org_trail_name" {
-  description = "Organization CloudTrail 이름"
+  description = "Organization CloudTrail name"
   type        = string
-}
-
-variable "cloudtrail_bucket_name" {
-  description = "Operation 계정에서 생성된 CloudTrail 로그용 S3 버킷 이름"
-  type        = string
+  default     = "org-cloudtrail"
 }
