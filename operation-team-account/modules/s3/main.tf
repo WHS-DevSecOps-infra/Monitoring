@@ -36,6 +36,11 @@ resource "aws_kms_key" "cloudtrail" {
   })
 }
 
+resource "aws_kms_alias" "cloudtrail" {
+  name          = var.kms_alias_name
+  target_key_id = aws_kms_key.cloudtrail.key_id
+}
+
 resource "aws_s3_bucket" "logs" {
   bucket = "${var.bucket_name}"
 }
@@ -102,11 +107,10 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
         Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
         Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/${var.management_account_id}/*"
+        Resource  = "${aws_s3_bucket.logs.arn}/AWSLogs/*"
         Condition = {
           StringEquals = {
-            "aws:SourceAccount" = var.management_account_id
-            "s3:x-amz-acl"      = "bucket-owner-full-control"
+            "s3:x-amz-acl" = "bucket-owner-full-control"
           }
         }
       }
