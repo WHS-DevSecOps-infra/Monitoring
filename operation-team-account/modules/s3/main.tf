@@ -10,8 +10,8 @@ resource "aws_kms_key" "cloudtrail" {
     Statement = [
       # 이 KMS 키를 만든 계정(root)이 모든 작업을 할 수 있도록
       {
-        Sid    = "AllowAccountRootFullAccess"
-        Effect = "Allow"
+        Sid       = "AllowAccountRootFullAccess"
+        Effect    = "Allow"
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         }
@@ -21,8 +21,8 @@ resource "aws_kms_key" "cloudtrail" {
 
       # CloudTrail 서비스가 이 키로 암호화 작업을 할 수 있도록
       {
-        Sid    = "AllowCloudTrailUseOfKey"
-        Effect = "Allow"
+        Sid       = "AllowCloudTrailUseOfKey"
+        Effect    = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
         }
@@ -31,23 +31,13 @@ resource "aws_kms_key" "cloudtrail" {
           "kms:Decrypt"
         ]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "kms:ViaService" = "cloudtrail.ap-northeast-2.amazonaws.com"
-          }
-        }
       }
     ]
   })
 }
 
-resource "aws_kms_alias" "cloudtrail" {
-  name          = var.kms_alias_name
-  target_key_id = aws_kms_key.cloudtrail.key_id
-}
-
 resource "aws_s3_bucket" "logs" {
-  bucket = var.bucket_name
+  bucket = "${var.bucket_name}"
 }
 
 resource "aws_s3_bucket_versioning" "logs" {
@@ -83,7 +73,7 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # 0) HTTPS 아닌 요청 모두 거부
+      # HTTPS 아닌 요청 모두 거부
       {
         Sid       = "DenyInsecureTransport"
         Effect    = "Deny"
@@ -105,8 +95,9 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
         Action    = "s3:GetBucketAcl"
         Resource  = aws_s3_bucket.logs.arn
       },
+
       # 로그 쓰기 + bucket-owner-full-control ACL 조건
-       {
+      {
         Sid       = "AllowCloudTrailWrite"
         Effect    = "Allow"
         Principal = { Service = "cloudtrail.amazonaws.com" }
@@ -129,7 +120,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   rule {
     id     = "expire-logs-after-30-days"
     status = "Enabled"
-
+    
     filter { prefix = "" }
 
     expiration {
