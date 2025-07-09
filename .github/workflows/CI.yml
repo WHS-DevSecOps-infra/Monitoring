@@ -1,51 +1,44 @@
-name: Organization CI
+name: Monitoring CI
 
 on:
-  pull_request:
+  pull_request: # PR이 main 브랜치로 올 때 실행
     branches: [main]
     paths:
       - "operation-team-account/**"
       - "identity-team-account/**"
-      - "prod-team-account/**"
-      - "dev-team-account/**"
-      - "security-team-account/**"
-      - "stage-team-account/**"
-      - "management-team-account/**"
+
 
 permissions:
-  contents: read
-  pull-requests: write
-  id-token: write
+  contents: read # 코드 읽을 수 있는 권한
+  pull-requests: write # PR 코멘트 작성 등 가능
+  id-token: write # OIDC기반 인증에 필요
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set.outputs.matrix }}
+      matrix: ${{ steps.set.outputs.matrix }} # 다음 job에서 사용할 matrix 값
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # git diff가 정상 동작하려면 전체 커밋 히스토리를 가져와야 함
 
-      - name: Fetch origin/main
+      - name: Fetch origin/main # main 브랜치 히스토리 가져오기
         run: git fetch origin main
 
       - name: Detect Changed Directories & Build Matrix
         id: set
         run: |
-          FILES=$(git diff --name-only origin/main...${{ github.sha }})
+          FILES=$(git diff --name-only origin/main...${{ github.sha }})  # 변경된 파일 목록
           echo "Changed files:"
           echo "$FILES"
 
-          declare -A ROLE_MAP=( 
+          # 각 account별 디렉토리에 해당하는 IAM Role 매핑
+          declare -A ROLE_MAP=(
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
-            ["prod-team-account"]="ROLE_ARN_PROD"
-            ["dev-team-account"]="ROLE_ARN_DEV"
-            ["security-team-account"]="ROLE_ARN_SECURITY"
-            ["stage-team-account"]="ROLE_ARN_STAGE"
-            ["management-team-account"]="ROLE_ARN_MANAGEMENT"
+
           )
 
           TMP_FILE=$(mktemp)
@@ -72,9 +65,8 @@ jobs:
             fi
           done
 
-          # 중복 제거
+          # 중복 제거 및 JSON 포맷 생성
           UNIQUE_LINES=$(sort $TMP_FILE | uniq)
-
           MATRIX_JSON="["
           FIRST=1
 
@@ -100,13 +92,13 @@ jobs:
 
   terraform-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }} # 변경사항이 있을 때만 실행
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
-      fail-fast: false
+        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }} # 변경된 디렉토리 목록 기반 실행
+      fail-fast: false # 하나 실패해도 나머지는 계속 실행
 
     env:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
@@ -116,14 +108,16 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials # 각 matrix.role_key에 해당하는 AWS Role Assume
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[matrix.role_key] }}
 
-      - name: Install tfsec
+      - name: Install tfsec # 보안 취약점 스캐너 설치
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
@@ -135,24 +129,34 @@ jobs:
         with:
           terraform_version: 1.4.0
 
-      - name: Terraform Init
+      - name: Terraform Init # Terraform 초기화: backend 구성 및 provider 다운로드
         run: terraform init
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check -recursive # 코드 스타일 검사
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Validate
-        run: terraform validate
+        run: terraform validate # Terraform 구성 파일이 유효한지 문법 및 구조 검사
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Plan
         id: plan
+        continue-on-error: true #plan 실패해도 워크플로우 진행
         run: |
-          terraform plan -no-color -out=tfplan.binary
-          terraform show -no-color tfplan.binary > plan.txt
-          terraform show -json tfplan.binary > plan.json
+          START_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "START_TIME=$START_TIME" >> $GITHUB_ENV
+
+          PLAN_FILE=tfplan.binary
+          PLAN_TXT=plan.txt
+
+          terraform plan -no-color -out=$PLAN_FILE || echo "PLAN_FAILED=true" >> $GITHUB_ENV
+          terraform show -no-color $PLAN_FILE > $PLAN_TXT || echo "Plan failed" > $PLAN_TXT
+
+          # plan 출력값을 멀티라인 환경 변수에 저장
+          PLAN_CONTENT=$(cat $PLAN_TXT | sed 's/`/\\`/g')
+
           echo 'PLAN<<EOF' >> $GITHUB_OUTPUT
           cat plan.txt >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
@@ -164,12 +168,22 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ### Terraform Plan Output for `${{ matrix.dir }}`
+            ## [Terraform Plan Summary]
+            | 항목            | 값 |
+            |-----------------|-----|
+            | **Status**      | `${{ steps.plan.outcome }}` |
+            | **Directory**   | `${{ matrix.dir }}`  |
+            | **Executed At** | `${{ env.START_TIME }}` |
+
+
+            ---
+
+            ### Plan Output
             ```hcl
-            ${{ steps.plan.outputs.PLAN }}
+            ${{ steps.plan.outputs.PLAN_CONTENT }}
             ```
 
-      - name: Setup Infracost
+      - name: Setup Infracost # 비용 예측 도구 세팅
         uses: infracost/actions/setup@v2
 
       - name: Infracost Breakdown
@@ -184,4 +198,4 @@ jobs:
         uses: infracost/actions/comment@v1
         with:
           path: ${{ matrix.dir }}/infracost.json
-          behavior: update
+          behavior: update # 기존 코멘트 업데이트
