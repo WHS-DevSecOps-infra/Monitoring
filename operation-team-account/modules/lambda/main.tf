@@ -38,7 +38,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "es:ESHttpPut",
           "es:ESHttpGet"
         ]
-        # 인덱스 패턴 아래 모든 경로 허용
         Resource = "${var.opensearch_domain_arn}/security-events-*/*"
       },
       {

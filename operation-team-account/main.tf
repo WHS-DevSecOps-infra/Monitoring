@@ -85,8 +85,8 @@ module "lambda" {
   slack_webhook_url         = var.slack_webhook_url
   kms_key_arn               = module.s3.kms_key_arn
   bucket_arn                = module.s3.bucket_arn
-  lambda_subnet_ids         = [data.aws_subnets.default.ids[0]]
-  lambda_security_group_ids = [data.aws_security_group.default.id]
+  lambda_subnet_ids         = [module.network.private_subnet_id]
+  lambda_security_group_ids = [module.network.security_group_id]
 }
 
 # 5) EventBridge 모듈: S3 PutObject → Lambda 트리거
@@ -95,4 +95,9 @@ module "eventbridge" {
   bucket_name          = module.s3.bucket_name
   lambda_function_name = module.lambda.lambda_function_name
   lambda_function_arn  = module.lambda.lambda_function_arn
+}
+
+# 6) network 모듈 호출
+module "network" {
+  source = "./modules/network"
 }
