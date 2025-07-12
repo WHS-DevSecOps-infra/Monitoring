@@ -1,0 +1,28 @@
+# Terraform 관련 파일 무시
+.terraform/             # terraform init 시 생성되는 폴더
+*.tfstate               # 상태 파일 (리소스 실제 정보 포함)
+*.tfstate.*             # 상태 파일 백업
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+*.tfstate.backup
+.terraform.lock.hcl
+terraform.tfvars        # 민감 정보 입력용 파일
+*.auto.tfvars
+crash.log               # Terraform 충돌 로그
+.terraform
+override.tf
+override.tf.json
+# AWS CLI 자격 증명
+.aws/                   # ~/.aws/credentials, config 등
+~/.aws/
+.aws
+# 시스템 자동 생성 파일 (Windows/macOS)
+.DS_Store               # macOS
+Thumbs.db               # Windows
+ehthumbs.db             # Windows
+*.log                   # 일반 로그 파일
+*.tmp                   # 임시 파일
+
+# VSCode 설정 (선택사항)
+.vscode/

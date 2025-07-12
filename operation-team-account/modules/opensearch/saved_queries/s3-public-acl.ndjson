@@ -1,0 +1,22 @@
+{
+  "type": "search",
+  "id": "s3-public-acl-search",
+  "attributes": {
+    "title": "S3 퍼블릭 ACL 변경 탐지",
+    "description": "PutBucketAcl 또는 PutObjectAcl 이벤트 탐지",
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{
+        \"query\": {
+          \"bool\": {
+            \"should\": [
+              {\"match\": {\"eventName\": \"PutBucketAcl\"}},
+              {\"match\": {\"eventName\": \"PutObjectAcl\"}}
+            ],
+            \"minimum_should_match\": 1
+          }
+        },
+        \"index\": \"cloudtrail-*\"
+      }"
+    }
+  }
+}
