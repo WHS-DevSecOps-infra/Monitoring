@@ -1,0 +1,17 @@
+{"type":"search","id":"root-login-search","attributes":{
+  "title":"Root Console Login",
+  "description":"Root 계정 로그인 탐지",
+  "kibanaSavedObjectMeta":{
+    "searchSourceJSON":"{
+      \"query\":{
+        \"bool\":{
+          \"must\":[
+            {\"match\":{\"eventName\":\"ConsoleLogin\"}},
+            {\"match\":{\"userIdentity.type\":\"Root\"}}
+          ]
+        }
+      },
+      \"index\":\"cloudtrail-*\"
+    }"
+  }
+}}
