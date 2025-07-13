@@ -9,6 +9,18 @@ resource "aws_cloudtrail" "org" {
   s3_bucket_name = var.cloudtrail_bucket_name
   kms_key_id     = var.cloudtrail_kms_key_arn
 
+  event_selector {
+    read_write_type           = "All"
+    include_management_events = true
+
+    data_resource {
+      type   = "AWS::S3::Object"
+      values = [
+        "arn:aws:s3:::${var.cloudtrail_bucket_name}/AWSLogs/"
+      ]
+    }
+  }
+
   tags = {
     Name        = var.org_trail_name
     Environment = "prod"
