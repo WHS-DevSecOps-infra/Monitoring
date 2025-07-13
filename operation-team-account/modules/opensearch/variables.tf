@@ -42,3 +42,18 @@ variable "security_group_ids" {
   description = "List of security group IDs for the OpenSearch domain VPC configuration"
   type        = list(string)
 }
+
+variable "basic_auth_user" {
+  description = "Basic auth user for OpenSearch Dashboards"
+  type        = string
+}
+
+variable "basic_auth_pass" {
+  description = "Basic auth password for OpenSearch Dashboards"
+  type        = string
+}
+
+variable "region" {
+  description = "AWS region where the OpenSearch domain will be created"
+  type        = string
+}
