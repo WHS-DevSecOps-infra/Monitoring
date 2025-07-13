@@ -26,7 +26,8 @@ jobs:
               - 'operation-team-account/**'
             identity:
               - 'identity-team-account/**'
-
+            management:
+              - 'management-team-account/**'
 
       - name: Build Matrix from Filter (with subdirs)
         id: set
@@ -34,13 +35,13 @@ jobs:
           # 필터링된 결과를 환경변수로 받아옴
           FILTER_OUTPUTS_operation: ${{ steps.filter.outputs.operation }}
           FILTER_OUTPUTS_identity: ${{ steps.filter.outputs.identity }}
-
+          FILTER_OUTPUTS_management: ${{ steps.filter.outputs.management }}
         run: |
           # 계정 별 IAM Role Key 매핑
           declare -A ROLE_MAP=(
             ["operation"]="ROLE_ARN_OPERATION"
             ["identity"]="ROLE_ARN_IDENTITY"
-
+            ["management"]="ROLE_ARN_MANAGEMENT"
           )
 
           MATRIX_ITEMS=()

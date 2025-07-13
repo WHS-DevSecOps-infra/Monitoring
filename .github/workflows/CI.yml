@@ -6,6 +6,7 @@ on:
     paths:
       - "operation-team-account/**"
       - "identity-team-account/**"
+      - "management-team-account/**"
 
 
 permissions:
@@ -38,7 +39,7 @@ jobs:
           declare -A ROLE_MAP=(
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
-
+            ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
           TMP_FILE=$(mktemp)
@@ -143,7 +144,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        continue-on-error: true #plan 실패해도 워크플로우 진행
+        continue-on-error: true
         run: |
           START_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           echo "START_TIME=$START_TIME" >> $GITHUB_ENV
@@ -151,15 +152,40 @@ jobs:
           PLAN_FILE=tfplan.binary
           PLAN_TXT=plan.txt
 
-          terraform plan -no-color -out=$PLAN_FILE || echo "PLAN_FAILED=true" >> $GITHUB_ENV
-          terraform show -no-color $PLAN_FILE > $PLAN_TXT || echo "Plan failed" > $PLAN_TXT
+          # 기본 실패 메시지
+          PLAN_CONTENT="Terraform plan failed."
 
-          # plan 출력값을 멀티라인 환경 변수에 저장
-          PLAN_CONTENT=$(cat $PLAN_TXT | sed 's/`/\\`/g')
+          # Terraform Plan 실행
+          if terraform plan -no-color -out=$PLAN_FILE; then
+            echo "[INFO] terraform plan succeeded."
+            
+            # show 및 no change 여부 판단
+            terraform show -no-color $PLAN_FILE > $PLAN_TXT
 
-          echo 'PLAN<<EOF' >> $GITHUB_OUTPUT
-          cat plan.txt >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+            IS_EMPTY=$(terraform show -json $PLAN_FILE 2>/dev/null | jq -e '.resource_changes == []' 2>/dev/null || echo "false")
+
+            if [ "$IS_EMPTY" = "true" ]; then
+              PLAN_CONTENT="(plan success) No changes to apply. Everything looks good!"
+            else
+              # 길이 제한 없이 전체 내용 출력 (출력 너무 클 경우 GitHub가 거부할 수 있음 — 감수한 상태)
+            PLAN_CONTENT=$(
+              cat $PLAN_TXT | \
+              sed 's/`/\\`/g' | \
+              sed 's/::/%::%/g' | \
+              tr -d '\r' | \
+              sed -r "s/\x1B\[[0-9;]*[JKmsu]//g"
+            )
+          fi
+          else
+            echo "[ERROR] terraform plan failed. Skipping show."
+            echo "Terraform plan failed." > $PLAN_TXT
+          fi
+
+          {
+            echo "PLAN_CONTENT<<EOF"
+            echo "$PLAN_CONTENT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
         working-directory: ${{ matrix.dir }}
 
       - name: Comment Terraform Plan on PR
