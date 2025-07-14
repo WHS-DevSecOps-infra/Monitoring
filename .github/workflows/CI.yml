@@ -1,44 +1,46 @@
 name: Monitoring CI
 
 on:
-  pull_request: # PR이 main 브랜치로 올 때 실행
+  pull_request:
     branches: [main]
     paths:
       - "operation-team-account/**"
       - "identity-team-account/**"
       - "management-team-account/**"
 
-
 permissions:
-  contents: read # 코드 읽을 수 있는 권한
-  pull-requests: write # PR 코멘트 작성 등 가능
-  id-token: write # OIDC기반 인증에 필요
+  contents: read
+  pull-requests: write
+  id-token: write
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set.outputs.matrix }} # 다음 job에서 사용할 matrix 값
+      matrix: ${{ steps.set.outputs.matrix }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # git diff가 정상 동작하려면 전체 커밋 히스토리를 가져와야 함
+          fetch-depth: 0
 
-      - name: Fetch origin/main # main 브랜치 히스토리 가져오기
+      - name: Fetch origin/main
         run: git fetch origin main
 
       - name: Detect Changed Directories & Build Matrix
         id: set
         run: |
-          FILES=$(git diff --name-only origin/main...${{ github.sha }})  # 변경된 파일 목록
+          FILES=$(git diff --name-only origin/main...${{ github.sha }})
           echo "Changed files:"
           echo "$FILES"
 
-          # 각 account별 디렉토리에 해당하는 IAM Role 매핑
           declare -A ROLE_MAP=(
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
+            ["prod-team-account"]="ROLE_ARN_PROD"
+            ["dev-team-account"]="ROLE_ARN_DEV"
+            ["security-team-account"]="ROLE_ARN_SECURITY"
+            ["stage-team-account"]="ROLE_ARN_STAGE"
             ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
@@ -50,14 +52,12 @@ jobs:
             ROLE_KEY="${ROLE_MAP[$TOP_DIR]}"
 
             if [ -n "$ROLE_KEY" ]; then
-              # 루트 디렉터리
               if [ "$DIR" == "$TOP_DIR" ]; then
                 TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
                 if [ "$TF_COUNT" -gt 0 ]; then
                   echo "$DIR|$ROLE_KEY" >> $TMP_FILE
                 fi
               else
-                # 하위 디렉터리
                 TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
                 if [ "$TF_COUNT" -gt 0 ]; then
                   echo "$DIR|$ROLE_KEY" >> $TMP_FILE
@@ -66,7 +66,6 @@ jobs:
             fi
           done
 
-          # 중복 제거 및 JSON 포맷 생성
           UNIQUE_LINES=$(sort $TMP_FILE | uniq)
           MATRIX_JSON="["
           FIRST=1
@@ -93,13 +92,13 @@ jobs:
 
   terraform-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.matrix != '[]' }} # 변경사항이 있을 때만 실행
+    if: ${{ needs.detect-changes.outputs.matrix != '[]' }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }} # 변경된 디렉토리 목록 기반 실행
-      fail-fast: false # 하나 실패해도 나머지는 계속 실행
+        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
 
     env:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
@@ -112,80 +111,71 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure AWS Credentials # 각 matrix.role_key에 해당하는 AWS Role Assume
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[matrix.role_key] }}
 
-      - name: Install tfsec # 보안 취약점 스캐너 설치
+      - name: Install Terraform
+        run: |
+          curl -LO https://releases.hashicorp.com/terraform/1.4.0/terraform_1.4.0_linux_amd64.zip
+          unzip terraform_1.4.0_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+
+      - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
       - name: Run tfsec (fail on HIGH+)
         run: tfsec --minimum-severity HIGH --no-color ${{ matrix.dir }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 1.4.0
-
-      - name: Terraform Init # Terraform 초기화: backend 구성 및 provider 다운로드
+      - name: Terraform Init
         run: terraform init
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive # 코드 스타일 검사
+        run: terraform fmt -check -recursive
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Validate
-        run: terraform validate # Terraform 구성 파일이 유효한지 문법 및 구조 검사
+        run: terraform validate
         working-directory: ${{ matrix.dir }}
 
       - name: Terraform Plan
         id: plan
-        continue-on-error: true
         run: |
           START_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           echo "START_TIME=$START_TIME" >> $GITHUB_ENV
 
           PLAN_FILE=tfplan.binary
           PLAN_TXT=plan.txt
+          PLAN_JSON=plan.json
 
-          # 기본 실패 메시지
-          PLAN_CONTENT="Terraform plan failed."
+          # Run terraform plan
+          terraform plan -no-color -out=$PLAN_FILE > /dev/null 2> plan_error.txt || echo "PLAN_FAILED=true" >> $GITHUB_ENV
 
-          # Terraform Plan 실행
-          if terraform plan -no-color -out=$PLAN_FILE; then
-            echo "[INFO] terraform plan succeeded."
-            
-            # show 및 no change 여부 판단
-            terraform show -no-color $PLAN_FILE > $PLAN_TXT
+          # Show plan text output
+          terraform show -no-color $PLAN_FILE > $PLAN_TXT 2>/dev/null || echo "Plan failed" > $PLAN_TXT
 
-            IS_EMPTY=$(terraform show -json $PLAN_FILE 2>/dev/null | jq -e '.resource_changes == []' 2>/dev/null || echo "false")
+          # Remove ANSI color codes
+          cat $PLAN_TXT | \
+            sed 's/`/\\`/g' | \
+            tr -d '\r' | \
+            sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" \
+            > cleaned_plan.txt
 
-            if [ "$IS_EMPTY" = "true" ]; then
-              PLAN_CONTENT="(plan success) No changes to apply. Everything looks good!"
-            else
-              # 길이 제한 없이 전체 내용 출력 (출력 너무 클 경우 GitHub가 거부할 수 있음 — 감수한 상태)
-            PLAN_CONTENT=$(
-              cat $PLAN_TXT | \
-              sed 's/`/\\`/g' | \
-              sed 's/::/%::%/g' | \
-              tr -d '\r' | \
-              sed -r "s/\x1B\[[0-9;]*[JKmsu]//g"
-            )
-          fi
-          else
-            echo "[ERROR] terraform plan failed. Skipping show."
-            echo "Terraform plan failed." > $PLAN_TXT
-          fi
+          PLAN_CONTENT=$(cat cleaned_plan.txt)
 
+          # Save JSON plan for infracost
+          terraform show -json $PLAN_FILE > $PLAN_JSON || true
+
+          # Output plan content for PR comment
           {
             echo "PLAN_CONTENT<<EOF"
             echo "$PLAN_CONTENT"
             echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          } >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.dir }}
 
       - name: Comment Terraform Plan on PR
@@ -201,7 +191,6 @@ jobs:
             | **Directory**   | `${{ matrix.dir }}`  |
             | **Executed At** | `${{ env.START_TIME }}` |
 
-
             ---
 
             ### Plan Output
@@ -209,7 +198,7 @@ jobs:
             ${{ steps.plan.outputs.PLAN_CONTENT }}
             ```
 
-      - name: Setup Infracost # 비용 예측 도구 세팅
+      - name: Setup Infracost
         uses: infracost/actions/setup@v2
 
       - name: Infracost Breakdown
@@ -224,4 +213,4 @@ jobs:
         uses: infracost/actions/comment@v1
         with:
           path: ${{ matrix.dir }}/infracost.json
-          behavior: update # 기존 코멘트 업데이트
+          behavior: update
