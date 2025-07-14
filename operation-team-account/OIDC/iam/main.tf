@@ -4,7 +4,7 @@
 
 
 module "github_oidc" {
-  source = "../../../modules/github_oidc"
+  source = "../../../modules/iam_OIDC"
 
   role_name      = "operation-cicd"
   account_id     = "502676416967"
