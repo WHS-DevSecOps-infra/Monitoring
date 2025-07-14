@@ -12,13 +12,13 @@ terraform {
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "tfstate-operation-lock"
-    profile        = "whs-sso-operation"
+    profile        = "whs-sso-management"
   }
 }
 
 provider "aws" {
   region  = var.aws_region
-  profile = "whs-sso-operation"
+  profile = "whs-sso-management"
 }
 
 provider "aws" {
@@ -73,7 +73,10 @@ module "opensearch" {
   lambda_role_arn        = module.lambda.lambda_function_role_arn
   subnet_ids             = [data.aws_subnets.default.ids[0]]
   security_group_ids     = [data.aws_security_group.default.id]
+  slack_webhook_url = var.slack_webhook_url
 }
+
+
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
 module "lambda" {
