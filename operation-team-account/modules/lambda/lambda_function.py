@@ -4,6 +4,27 @@ import gzip
 import boto3
 import urllib.request
 import urllib.error
+import requests
+
+# OpenSearch로 로그 전송
+def send_to_opensearch(record: dict):
+    endpoint = os.environ['OPENSEARCH_URL']                       # e.g. "https://your-domain.region.es.amazonaws.com"
+    index    = "security-alerts-" + record.get("eventName", "unknown").lower()
+    url      = f"{endpoint}/{index}/_doc"
+    headers  = {"Content-Type": "application/json"}
+    # 원하는 형태로 문서 구조를 정리
+    doc = {
+        "@timestamp": record.get("eventTime"),
+        "eventName":  record.get("eventName"),
+        "user":       record.get("userIdentity", {}).get("arn"),
+        "sourceIP":   record.get("sourceIPAddress"),
+        "awsRegion":  record.get("awsRegion"),
+        "accountId":  record.get("recipientAccountId"),
+        "raw":        record
+    }
+    resp = requests.post(url, headers=headers, data=json.dumps(doc), timeout=5)
+    resp.raise_for_status()
+
 
 def send_slack_alert(record: dict):
     webhook_url = os.environ['SLACK_WEBHOOK_URL']
@@ -93,11 +114,9 @@ def lambda_handler(event, context):
 
     for record in log_data.get("Records", []):
         evt = record.get("eventName")
-        # 실패한 로그인만
-        if evt == "ConsoleLogin" and record.get("errorCode") != "Success":
+        if evt in alert_events:
             send_slack_alert(record)
-        elif evt in alert_events:
-            send_slack_alert(record)
+            send_to_opensearch(record)
 
     return {
         "statusCode": 200,

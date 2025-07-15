@@ -54,10 +54,10 @@ data "aws_caller_identity" "management" {
 
 # 2) S3 모듈: CloudTrail 로그 버킷 + KMS
 module "s3" {
-  source      = "./modules/s3"
-  bucket_name = var.cloudtrail_bucket_name
-  aws_region  = var.aws_region
-  kms_alias_name = var.kms_alias_name
+  source                = "./modules/s3"
+  bucket_name           = var.cloudtrail_bucket_name
+  aws_region            = var.aws_region
+  kms_alias_name        = var.kms_alias_name
   management_account_id = data.aws_caller_identity.management.account_id
 }
 
