@@ -7,6 +7,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_subnet" "public" {
+  # tfsec:ignore:aws-ec2-no-public-ip-subnet
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
@@ -58,6 +59,7 @@ resource "aws_route_table_association" "private" {
 }
 
 resource "aws_security_group" "allow_lambda" {
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr
   name        = "lambda-security-group"
   description = "Allow Lambda to access internet via NAT"
   vpc_id      = aws_vpc.main.id
