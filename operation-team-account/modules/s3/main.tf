@@ -10,8 +10,8 @@ resource "aws_kms_key" "cloudtrail" {
     Statement = [
       # 이 KMS 키를 만든 계정(root)이 모든 작업을 할 수 있도록
       {
-        Sid       = "AllowAccountRootFullAccess"
-        Effect    = "Allow"
+        Sid    = "AllowAccountRootFullAccess"
+        Effect = "Allow"
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         }
@@ -21,8 +21,8 @@ resource "aws_kms_key" "cloudtrail" {
 
       # CloudTrail 서비스가 이 키로 암호화 작업을 할 수 있도록
       {
-        Sid       = "AllowCloudTrailUseOfKey"
-        Effect    = "Allow"
+        Sid    = "AllowCloudTrailUseOfKey"
+        Effect = "Allow"
         Principal = {
           Service = "cloudtrail.amazonaws.com"
         }
@@ -42,7 +42,7 @@ resource "aws_kms_alias" "cloudtrail" {
 }
 
 resource "aws_s3_bucket" "logs" {
-  bucket = "${var.bucket_name}"
+  bucket = var.bucket_name
 }
 
 resource "aws_s3_bucket_versioning" "logs" {
@@ -124,7 +124,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   rule {
     id     = "expire-logs-after-30-days"
     status = "Enabled"
-    
+
     filter { prefix = "" }
 
     expiration {

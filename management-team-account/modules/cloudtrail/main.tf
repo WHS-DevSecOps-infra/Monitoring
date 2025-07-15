@@ -14,7 +14,7 @@ resource "aws_cloudtrail" "org" {
     include_management_events = true
 
     data_resource {
-      type   = "AWS::S3::Object"
+      type = "AWS::S3::Object"
       values = [
         "arn:aws:s3:::${var.cloudtrail_bucket_name}/AWSLogs/"
       ]
