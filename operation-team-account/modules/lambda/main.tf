@@ -38,7 +38,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "es:ESHttpPut",
           "es:ESHttpGet"
         ]
-        Resource = "${var.opensearch_domain_arn}/security-events-*/*"
+        Resource = "${var.opensearch_domain_arn}/security-alerts-*/*"
       },
       {
         Sid      = "AllowKMSDecrypt"
@@ -74,7 +74,7 @@ resource "aws_lambda_function" "log_processor" {
   environment {
     variables = {
       SLACK_WEBHOOK_URL = var.slack_webhook_url
-      OPENSEARCH_URL    = var.opensearch_endpoint
+      OPENSEARCH_URL    = "https://${var.opensearch_endpoint}"
     }
   }
 }
