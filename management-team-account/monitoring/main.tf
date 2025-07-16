@@ -37,7 +37,11 @@ module "cloudtrail" {
   source                 = "../../modules/cloudtrail_org"
 =======
   source                 = "../modules/cloudtrail_org"
+<<<<<<< HEAD
 >>>>>>> b154501 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴)):management-team-account/main.tf
+=======
+>>>>>>> a230959 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴)):management-team-account/main.tf
+>>>>>>> b8201d3 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴))
   org_trail_name         = var.org_trail_name
   cloudtrail_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
   cloudtrail_kms_key_arn = data.terraform_remote_state.operation.outputs.kms_key_arn

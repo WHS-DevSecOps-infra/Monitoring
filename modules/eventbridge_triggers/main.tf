@@ -27,8 +27,7 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.s3_object_created.arn
-<<<<<<< HEAD
-=======
+
 }
 
 # 루트 계정 로그인 실패 탐지
@@ -262,5 +261,4 @@ resource "aws_lambda_permission" "allow_detect_ec2_launch" {
   function_name = var.lambda_function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.detect_ec2_launch.arn
->>>>>>> b154501 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴))
 }

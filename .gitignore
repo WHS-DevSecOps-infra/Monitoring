@@ -26,6 +26,9 @@ ehthumbs.db             # Windows
 
 # VSCode 설정 (선택사항)
 .vscode/
+<<<<<<< HEAD
 
 # OpenSearch alert 생성 시 생기는 임시 파일
 modules/opensearch/slack_response.json
+=======
+>>>>>>> a230959 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴))
