@@ -62,21 +62,21 @@ resource "aws_security_group" "allow_lambda" {
   description = "Allow Lambda to access internet via NAT"
   vpc_id      = aws_vpc.main.id
 
- # HTTPS only
- egress {
-   description = "Allow HTTPS outbound"
-   from_port   = 443
-   to_port     = 443
-   protocol    = "tcp"
-   cidr_blocks = ["0.0.0.0/0"]
- }
+  # HTTPS only
+  egress {
+    description = "Allow HTTPS outbound"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
- # DNS lookup
- egress {
-   description = "Allow DNS outbound"
-   from_port   = 53
-   to_port     = 53
-   protocol    = "udp"
-   cidr_blocks = ["10.0.0.2/32"]
- }
+  # DNS lookup
+  egress {
+    description = "Allow DNS outbound"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["10.0.0.2/32"]
+  }
 }
