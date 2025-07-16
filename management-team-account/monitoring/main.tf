@@ -33,7 +33,11 @@ data "terraform_remote_state" "operation" {
 data "aws_caller_identity" "current" {}
 
 module "cloudtrail" {
+<<<<<<< HEAD:management-team-account/monitoring/main.tf
   source                 = "../../modules/cloudtrail_org"
+=======
+  source                 = "../modules/cloudtrail_org"
+>>>>>>> b154501 (refactor: 전체 폴더구조 수정(slack 알림 잘 옴)):management-team-account/main.tf
   org_trail_name         = var.org_trail_name
   cloudtrail_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
   cloudtrail_kms_key_arn = data.terraform_remote_state.operation.outputs.kms_key_arn
