@@ -54,7 +54,7 @@ data "aws_caller_identity" "management" {
 
 # 2) S3 모듈: CloudTrail 로그 버킷 + KMS
 module "s3" {
-  source                = "./modules/s3"
+  source                = "../modules/s3_cloudtrail_logs"
   bucket_name           = var.cloudtrail_bucket_name
   aws_region            = var.aws_region
   kms_alias_name        = var.kms_alias_name
@@ -63,7 +63,7 @@ module "s3" {
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책
 module "opensearch" {
-  source                 = "./modules/opensearch"
+  source                 = "../modules/opensearch"
   domain_name            = var.opensearch_domain_name
   engine_version         = var.opensearch_engine_version
   cluster_instance_type  = var.opensearch_instance_type
@@ -77,9 +77,9 @@ module "opensearch" {
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
 module "lambda" {
-  source                    = "./modules/lambda"
+  source                    = "../modules/lambda_log_processor"
   lambda_function_name      = "cloudtrail-log-processor"
-  lambda_zip_path           = "./modules/lambda/lambda_package.zip"
+  lambda_zip_path           = "../modules/lambda_log_processor/lambda_package.zip"
   opensearch_domain_arn     = module.opensearch.domain_arn
   opensearch_endpoint       = module.opensearch.endpoint
   slack_webhook_url         = var.slack_webhook_url
@@ -91,7 +91,7 @@ module "lambda" {
 
 # 5) EventBridge 모듈: S3 PutObject → Lambda 트리거
 module "eventbridge" {
-  source               = "./modules/eventbridge"
+  source               = "../modules/eventbridge_triggers"
   bucket_name          = module.s3.bucket_name
   lambda_function_name = module.lambda.lambda_function_name
   lambda_function_arn  = module.lambda.lambda_function_arn
@@ -99,5 +99,5 @@ module "eventbridge" {
 
 # 6) network 모듈 호출
 module "network" {
-  source = "./modules/network"
+  source = "../modules/network_vpc"
 }
