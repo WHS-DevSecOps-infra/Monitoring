@@ -116,7 +116,10 @@ def lambda_handler(event, context):
         evt = record.get("eventName")
         if evt in alert_events:
             send_slack_alert(record)
-            send_to_opensearch(record)
+            try:
+                send_to_opensearch(record)
+            except Exception as e:
+                print(f"[Warning] OpenSearch indexing failed for {evt}: {e}")
 
     return {
         "statusCode": 200,
