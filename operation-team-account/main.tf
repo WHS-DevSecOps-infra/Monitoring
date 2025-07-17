@@ -96,5 +96,6 @@ module "eventbridge" {
 
 # 6) network 모듈 호출
 module "network" {
-  source = "../modules/network_vpc"
+  source     = "../modules/network_vpc"
+  aws_region = var.aws_region
 }

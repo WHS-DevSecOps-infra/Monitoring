@@ -77,6 +77,9 @@ resource "aws_lambda_function" "log_processor" {
       OPENSEARCH_URL    = "https://${var.opensearch_endpoint}"
     }
   }
+  lifecycle {
+    ignore_changes = [vpc_config]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "vpc_access" {
