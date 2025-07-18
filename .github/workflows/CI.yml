@@ -34,14 +34,13 @@ jobs:
           echo "Changed files:"
           echo "$FILES"
 
-          declare -A ROLE_MAP=(
+          declare -A ROLE_MAP=( 
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
             ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
           TMP_FILE=$(mktemp)
-
           for FILE in $FILES; do
             DIR=$(dirname "$FILE")
             TOP_DIR=$(echo $DIR | cut -d/ -f1)
@@ -73,10 +72,8 @@ jobs:
           done <<< "$UNIQUE_LINES"
 
           MATRIX_JSON="$MATRIX_JSON]"
-
           echo "Final JSON matrix:"
           echo "$MATRIX_JSON"
-
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   terraform-ci:
@@ -144,25 +141,28 @@ jobs:
 
           if terraform plan -no-color -out=$PLAN_FILE > /dev/null 2> plan_error.txt; then
             echo "PLAN_FAILED=false" >> $GITHUB_ENV
-            terraform show -no-color $PLAN_FILE > $PLAN_TXT || echo "(show failed)" > $PLAN_TXT
-            terraform show -json $PLAN_FILE > $PLAN_JSON || echo "{}" > $PLAN_JSON
+            terraform show -no-color $PLAN_FILE > $PLAN_TXT
+            terraform show -json $PLAN_FILE > $PLAN_JSON || true
           else
             echo "PLAN_FAILED=true" >> $GITHUB_ENV
             echo "Plan failed" > $PLAN_TXT
             echo "{}" > $PLAN_JSON
           fi
 
+          # 디버깅용 출력
           echo "::group::Raw terraform show output"
           cat $PLAN_TXT || echo "(empty)"
           echo "::endgroup::"
 
           sed 's/`/\\`/g' $PLAN_TXT | tr -d '\r' | sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" > cleaned_plan.txt
+
           PLAN_CONTENT=$(cat cleaned_plan.txt)
           PLAN_ERROR=$(cat plan_error.txt || echo "No error captured")
 
           if [ -z "$PLAN_CONTENT" ]; then
             PLAN_CONTENT="(no changes or output empty)"
           fi
+
           if [ -z "$PLAN_ERROR" ]; then
             PLAN_ERROR="(no errors)"
           fi
