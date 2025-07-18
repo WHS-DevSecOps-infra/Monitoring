@@ -2,9 +2,24 @@ import os
 import json
 import gzip
 import boto3
+from requests_aws4auth import AWS4Auth
 import urllib.request
 import urllib.error
 import requests
+
+# AWS 자격증명과 리전 가져오기
+session = boto3.session.Session()
+credentials = session.get_credentials()
+region = session.region_name or os.environ.get("AWS_REGION")
+
+# AWS4Auth 객체 생성 (service="es")
+awsauth = AWS4Auth(
+    credentials.access_key,
+    credentials.secret_key,
+    region,
+    "es",
+    session_token=credentials.token
+)
 
 # OpenSearch로 로그 전송
 def send_to_opensearch(record: dict):
@@ -22,8 +37,9 @@ def send_to_opensearch(record: dict):
         "accountId":  record.get("recipientAccountId"),
         "raw":        record
     }
-    resp = requests.post(url, headers=headers, data=json.dumps(doc), timeout=5)
+    resp = requests.post(url, auth=awsauth, headers=headers, data=json.dumps(doc), timeout=(5, 30))
     resp.raise_for_status()
+    print(f"[Info] OpenSearch indexing succeeded for {record.get('eventName')}")
 
 
 def send_slack_alert(record: dict):

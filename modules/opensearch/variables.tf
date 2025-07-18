@@ -42,3 +42,9 @@ variable "security_group_ids" {
   description = "List of security group IDs for the OpenSearch domain VPC configuration"
   type        = list(string)
 }
+
+variable "extra_security_group_ids" {
+  type        = list(string)
+  description = "네트워크 모듈에서 생성된 Opensearch SG ID를 전달받기 위한 변수"
+  default     = []
+}

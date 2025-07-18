@@ -60,16 +60,17 @@ module "s3" {
 
 # 3) OpenSearch 모듈: 도메인 생성 + 접근 정책
 module "opensearch" {
-  source                 = "../modules/opensearch"
-  domain_name            = var.opensearch_domain_name
-  engine_version         = var.opensearch_engine_version
-  cluster_instance_type  = var.opensearch_instance_type
-  cluster_instance_count = var.opensearch_instance_count
-  ebs_volume_size        = var.opensearch_ebs_size
-  kms_key_arn            = module.s3.kms_key_arn
-  lambda_role_arn        = module.lambda.lambda_function_role_arn
-  subnet_ids             = [data.aws_subnets.default.ids[0]]
-  security_group_ids     = [data.aws_security_group.default.id]
+  source                   = "../modules/opensearch"
+  domain_name              = var.opensearch_domain_name
+  engine_version           = var.opensearch_engine_version
+  cluster_instance_type    = var.opensearch_instance_type
+  cluster_instance_count   = var.opensearch_instance_count
+  ebs_volume_size          = var.opensearch_ebs_size
+  kms_key_arn              = module.s3.kms_key_arn
+  lambda_role_arn          = module.lambda.lambda_function_role_arn
+  subnet_ids               = [module.network.private_subnet_id]
+  security_group_ids       = [module.network.security_group_id]
+  extra_security_group_ids = [module.network.opensearch_sg_id]
 }
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송

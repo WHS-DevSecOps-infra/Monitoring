@@ -28,7 +28,7 @@ resource "aws_opensearch_domain" "siem" {
 
   vpc_options {
     subnet_ids         = var.subnet_ids
-    security_group_ids = var.security_group_ids
+    security_group_ids = concat(var.security_group_ids, var.extra_security_group_ids)
   }
 
   tags = {
