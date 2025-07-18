@@ -62,6 +62,14 @@ resource "aws_security_group" "allow_endpoint" {
   name   = "endpoint-sg"
   vpc_id = aws_vpc.main.id
 
+  ingress {
+    description = "Allow hosts in private subnet to access KMS interface endpoint"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_subnet.private.cidr_block]
+  }
+
   egress {
     from_port   = 443
     to_port     = 443
@@ -190,9 +198,18 @@ resource "aws_security_group" "opensearch_sg" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "Allow decryption via KMS Interface Endpoint"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.allow_endpoint.id]
+  }
+
+  egress {
+    description = "Allow DNS resolution"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["10.0.0.2/32"]
   }
 }
