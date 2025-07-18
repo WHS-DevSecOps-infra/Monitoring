@@ -15,7 +15,8 @@ resource "aws_opensearch_domain_policy" "siem_policy" {
           "es:ESHttpGet"
         ],
         Resource = [
-          "${aws_opensearch_domain.siem.arn}/security-events-*/*"
+          "${aws_opensearch_domain.siem.arn}/security-alerts-*",
+          "${aws_opensearch_domain.siem.arn}/security-alerts-*/*"
         ]
       }
     ]

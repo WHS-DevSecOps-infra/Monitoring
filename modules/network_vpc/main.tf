@@ -174,3 +174,25 @@ resource "aws_networkfirewall_firewall" "fw" {
     subnet_id = aws_subnet.private.id
   }
 }
+
+// OpenSearch 전용 SG
+resource "aws_security_group" "opensearch_sg" {
+  name        = "opensearch-sg"
+  description = "Allow Lambda to connect to OpenSearch"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "Allow Lambda SG on 443"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.allow_lambda.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
