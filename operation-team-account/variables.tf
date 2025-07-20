@@ -19,7 +19,7 @@ variable "opensearch_domain_name" {
 variable "opensearch_engine_version" {
   description = "OpenSearch engine version"
   type        = string
-  default     = "OpenSearch_2.9"
+  default     = "OpenSearch_2.11"
 }
 
 variable "opensearch_instance_type" {

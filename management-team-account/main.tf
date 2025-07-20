@@ -13,29 +13,26 @@ terraform {
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "tfstate-management-lock"
-    profile        = "whs-sso-management"
   }
 }
 
 provider "aws" {
-  region  = var.aws_region
-  profile = "whs-sso-management"
+  region = var.aws_region
 }
 
 data "terraform_remote_state" "operation" {
   backend = "s3"
   config = {
-    bucket  = "cloudfence-operation-state"
-    key     = "monitoring/terraform.tfstate"
-    region  = "ap-northeast-2"
-    profile = "whs-sso-operation"
+    bucket = "cloudfence-operation-state"
+    key    = "monitoring/terraform.tfstate"
+    region = "ap-northeast-2"
   }
 }
 
 data "aws_caller_identity" "current" {}
 
 module "cloudtrail" {
-  source                 = "./modules/cloudtrail"
+  source                 = "../modules/cloudtrail_org"
   org_trail_name         = var.org_trail_name
   cloudtrail_bucket_name = data.terraform_remote_state.operation.outputs.bucket_name
   cloudtrail_kms_key_arn = data.terraform_remote_state.operation.outputs.kms_key_arn

@@ -1,4 +1,4 @@
-name: Organization CI
+name: Monitoring CI
 
 on:
   pull_request:
@@ -6,10 +6,6 @@ on:
     paths:
       - "operation-team-account/**"
       - "identity-team-account/**"
-      - "prod-team-account/**"
-      - "dev-team-account/**"
-      - "security-team-account/**"
-      - "stage-team-account/**"
       - "management-team-account/**"
 
 permissions:
@@ -41,40 +37,24 @@ jobs:
           declare -A ROLE_MAP=( 
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
-            ["prod-team-account"]="ROLE_ARN_PROD"
-            ["dev-team-account"]="ROLE_ARN_DEV"
-            ["security-team-account"]="ROLE_ARN_SECURITY"
-            ["stage-team-account"]="ROLE_ARN_STAGE"
             ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
           TMP_FILE=$(mktemp)
-
           for FILE in $FILES; do
             DIR=$(dirname "$FILE")
             TOP_DIR=$(echo $DIR | cut -d/ -f1)
             ROLE_KEY="${ROLE_MAP[$TOP_DIR]}"
 
             if [ -n "$ROLE_KEY" ]; then
-              # 루트 디렉터리
-              if [ "$DIR" == "$TOP_DIR" ]; then
-                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
-                if [ "$TF_COUNT" -gt 0 ]; then
-                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
-                fi
-              else
-                # 하위 디렉터리
-                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
-                if [ "$TF_COUNT" -gt 0 ]; then
-                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
-                fi
+              TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
+              if [ "$TF_COUNT" -gt 0 ]; then
+                echo "$DIR|$ROLE_KEY" >> $TMP_FILE
               fi
             fi
           done
 
-          # 중복 제거
           UNIQUE_LINES=$(sort $TMP_FILE | uniq)
-
           MATRIX_JSON="["
           FIRST=1
 
@@ -92,10 +72,8 @@ jobs:
           done <<< "$UNIQUE_LINES"
 
           MATRIX_JSON="$MATRIX_JSON]"
-
           echo "Final JSON matrix:"
           echo "$MATRIX_JSON"
-
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   terraform-ci:
@@ -112,10 +90,13 @@ jobs:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       INFRACOST_TERRAFORM_CLI_WRAPPER: false
+      TF_VAR_slack_webhook_url: ${{ secrets.TF_VAR_slack_webhook_url }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -123,17 +104,18 @@ jobs:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets[matrix.role_key] }}
 
+      - name: Install Terraform
+        run: |
+          curl -LO https://releases.hashicorp.com/terraform/1.4.0/terraform_1.4.0_linux_amd64.zip
+          unzip terraform_1.4.0_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+
       - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
       - name: Run tfsec (fail on HIGH+)
         run: tfsec --minimum-severity HIGH --no-color ${{ matrix.dir }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 1.4.0
 
       - name: Terraform Init
         run: terraform init
@@ -150,12 +132,49 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -no-color -out=tfplan.binary
-          terraform show -no-color tfplan.binary > plan.txt
-          terraform show -json tfplan.binary > plan.json
-          echo 'PLAN<<EOF' >> $GITHUB_OUTPUT
-          cat plan.txt >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          START_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "START_TIME=$START_TIME" >> $GITHUB_ENV
+
+          PLAN_FILE=tfplan.binary
+          PLAN_TXT=plan.txt
+          PLAN_JSON=plan.json
+
+          if terraform plan -no-color -out=$PLAN_FILE > /dev/null 2> plan_error.txt; then
+            echo "PLAN_FAILED=false" >> $GITHUB_ENV
+            terraform show -no-color $PLAN_FILE > $PLAN_TXT
+            terraform show -json $PLAN_FILE > $PLAN_JSON || true
+          else
+            echo "PLAN_FAILED=true" >> $GITHUB_ENV
+            echo "Plan failed" > $PLAN_TXT
+            echo "{}" > $PLAN_JSON
+          fi
+
+          # 디버깅용 출력
+          echo "::group::Raw terraform show output"
+          cat $PLAN_TXT || echo "(empty)"
+          echo "::endgroup::"
+
+          sed 's/`/\\`/g' $PLAN_TXT | tr -d '\r' | sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" > cleaned_plan.txt
+
+          PLAN_CONTENT=$(cat cleaned_plan.txt)
+          PLAN_ERROR=$(cat plan_error.txt || echo "No error captured")
+
+          if [ -z "$PLAN_CONTENT" ]; then
+            PLAN_CONTENT="(no changes or output empty)"
+          fi
+
+          if [ -z "$PLAN_ERROR" ]; then
+            PLAN_ERROR="(no errors)"
+          fi
+
+          {
+            echo "PLAN_CONTENT<<EOF"
+            echo "$PLAN_CONTENT"
+            echo "EOF"
+            echo "PLAN_ERROR<<EOF"
+            echo "$PLAN_ERROR"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.dir }}
 
       - name: Comment Terraform Plan on PR
@@ -164,9 +183,23 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ### Terraform Plan Output for `${{ matrix.dir }}`
+            ## [Terraform Plan Summary]
+            | 항목            | 값 |
+            |-----------------|-----|
+            | **Status**      | `${{ steps.plan.outcome }}` |
+            | **Directory**   | `${{ matrix.dir }}`  |
+            | **Executed At** | `${{ env.START_TIME }}` |
+
+            ---
+
+            ### Plan Output
             ```hcl
-            ${{ steps.plan.outputs.PLAN }}
+            ${{ steps.plan.outputs.PLAN_CONTENT }}
+            ```
+
+            ### Plan Error (if any)
+            ```
+            ${{ steps.plan.outputs.PLAN_ERROR }}
             ```
 
       - name: Setup Infracost
