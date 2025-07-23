@@ -12,3 +12,7 @@ output "domain_arn" {
   description = "ARN of the OpenSearch domain"
   value       = aws_opensearch_domain.siem.arn
 }
+
+output "endpoint" {
+  value = aws_opensearch_domain.siem.endpoint
+}

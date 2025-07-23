@@ -2,8 +2,9 @@ output "private_subnet_id" {
   value = aws_subnet.private.id
 }
 
-output "security_group_id" {
-  value = aws_security_group.allow_lambda.id
+output "lambda_sg_id" {
+  description = "Security Group ID for Lambda function"
+  value       = aws_security_group.allow_lambda.id
 }
 
 output "opensearch_sg_id" {

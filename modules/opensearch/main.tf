@@ -26,18 +26,9 @@ resource "aws_opensearch_domain" "siem" {
     tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
   }
 
-  vpc_options {
-    subnet_ids         = var.subnet_ids
-    security_group_ids = concat(var.security_group_ids, var.extra_security_group_ids)
-  }
-
   tags = {
     Name        = "siem-opensearch"
     Environment = "dev"
     Owner       = "monitoring-team"
   }
-}
-
-output "endpoint" {
-  value = aws_opensearch_domain.siem.endpoint
 }
