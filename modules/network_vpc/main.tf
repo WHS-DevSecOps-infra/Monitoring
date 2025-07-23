@@ -101,13 +101,6 @@ resource "aws_security_group" "allow_lambda" {
   vpc_id = aws_vpc.main.id
 
   egress {
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    prefix_list_ids = [aws_vpc_endpoint.s3.prefix_list_id]
-  }
-
-  egress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -123,52 +116,19 @@ resource "aws_security_group" "allow_lambda" {
   }
 }
 
-// Slack 도메인만 통과시키는 Stateful 룰 그룹
-resource "aws_networkfirewall_rule_group" "slack_domain" {
-  name     = "allow-slack-domain"
-  type     = "STATEFUL"
-  capacity = 100
-
-  rule_group {
-    rules_source {
-      rules_source_list {
-        # ALLOWLIST 모드: targets에 지정한 도메인만 허용, 나머지는 차단
-        generated_rules_type = "ALLOWLIST"
-        # 허용할 도메인
-        targets = ["hooks.slack.com"]
-        # HTTP Host 헤더와 TLS SNI 검사
-        target_types = ["HTTP_HOST", "TLS_SNI"]
-      }
-    }
-
-    stateful_rule_options {
-      rule_order = "STRICT_ORDER"
-    }
-  }
-}
-
 // 룰 그룹을 연결할 방화벽 정책
 resource "aws_networkfirewall_firewall_policy" "policy" {
   name = "monitoring-firewall-policy"
 
   firewall_policy {
-    # Stateless 기본 동작
     stateless_default_actions          = ["aws:forward_to_sfe"]
     stateless_fragment_default_actions = ["aws:forward_to_sfe"]
 
-    # Stateful 엔진 순서 설정 (STRICT_ORDER 또는 DEFAULT_ACTION_ORDER)
     stateful_engine_options {
       rule_order = "STRICT_ORDER"
     }
 
-    # Stateful 기본 동작 — “drop” 대신 AWS-접두사 액션을 사용해야 합니다
     stateful_default_actions = ["aws:drop_strict"]
-
-    # Slack 도메인 허용 룰 그룹 (priority 필수)
-    stateful_rule_group_reference {
-      resource_arn = aws_networkfirewall_rule_group.slack_domain.arn
-      priority     = 1
-    }
   }
 }
 
@@ -189,14 +149,6 @@ resource "aws_security_group" "opensearch_sg" {
   description = "Allow Lambda to connect to OpenSearch"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description     = "Allow Lambda SG on 443"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.allow_lambda.id]
-  }
-
   egress {
     description     = "Allow decryption via KMS Interface Endpoint"
     from_port       = 443
@@ -212,4 +164,32 @@ resource "aws_security_group" "opensearch_sg" {
     protocol    = "udp"
     cidr_blocks = ["10.0.0.2/32"]
   }
+
+  egress {
+    description = "Allow outbound to Slack webhook"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # tfsec:ignore:aws-ec2-no-public-egress-sgr
+  }
+}
+
+resource "aws_security_group_rule" "lambda_to_opensearch" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.opensearch_sg.id
+  source_security_group_id = aws_security_group.allow_lambda.id
+  description              = "Allow Lambda to OpenSearch"
+}
+
+resource "aws_security_group_rule" "opensearch_to_lambda" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.allow_lambda.id
+  source_security_group_id = aws_security_group.opensearch_sg.id
+  description              = "Allow OpenSearch to Lambda"
 }

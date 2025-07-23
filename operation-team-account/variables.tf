@@ -57,3 +57,9 @@ variable "kms_alias_name" {
   type        = string
   default     = "alias/cloudtrail-logs"
 }
+
+variable "allowed_source_ips" {
+  description = "List of IPs allowed to access the OpenSearch domain"
+  type        = list(string)
+  default = []
+}

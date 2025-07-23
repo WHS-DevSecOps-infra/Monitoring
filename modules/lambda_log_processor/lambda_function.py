@@ -2,17 +2,15 @@ import os
 import json
 import gzip
 import boto3
-from requests_aws4auth import AWS4Auth
-import urllib.request
-import urllib.error
 import requests
+from datetime import datetime
+from requests_aws4auth import AWS4Auth
 
-# AWS 자격증명과 리전 가져오기
+# AWS 인증 설정
 session = boto3.session.Session()
 credentials = session.get_credentials()
 region = session.region_name or os.environ.get("AWS_REGION")
 
-# AWS4Auth 객체 생성 (service="es")
 awsauth = AWS4Auth(
     credentials.access_key,
     credentials.secret_key,
@@ -21,87 +19,86 @@ awsauth = AWS4Auth(
     session_token=credentials.token
 )
 
-# OpenSearch로 로그 전송
+OPENSEARCH_ENDPOINT = os.environ["OPENSEARCH_URL"]
+HEADERS = {"Content-Type": "application/json"}
+
+
+def extract_user_arn(user_identity: dict) -> str:
+    """AssumedRole 및 기타 케이스 포함한 ARN 추출 로직"""
+    if not isinstance(user_identity, dict):
+        return ""
+    
+    if "arn" in user_identity:
+        return str(user_identity["arn"])
+    
+    return str(
+        user_identity.get("sessionContext", {})
+                     .get("sessionIssuer", {})
+                     .get("arn", "")
+    )
+
+
 def send_to_opensearch(record: dict):
-    endpoint = os.environ['OPENSEARCH_URL']
-    index    = "security-alerts-" + record.get("eventName", "unknown").lower()
-    url      = f"{endpoint}/{index}/_doc"
-    headers  = {"Content-Type": "application/json"}
-    # 원하는 형태로 문서 구조를 정리
-    doc = {
-        "@timestamp": record.get("eventTime"),
-        "eventName":  record.get("eventName"),
-        "user":       record.get("userIdentity", {}).get("arn"),
-        "sourceIP":   record.get("sourceIPAddress"),
-        "awsRegion":  record.get("awsRegion"),
-        "accountId":  record.get("recipientAccountId"),
-        "raw":        record
-    }
-    resp = requests.post(url, auth=awsauth, headers=headers, data=json.dumps(doc), timeout=(5, 30))
-    resp.raise_for_status()
-    print(f"[Info] OpenSearch indexing succeeded for {record.get('eventName')}")
-
-
-def send_slack_alert(record: dict):
-    webhook_url = os.environ['SLACK_WEBHOOK_URL']
-    user       = record.get("userIdentity", {}).get("arn", "Unknown user")
-    event_name = record.get("eventName", "Unknown event")
-    source_ip  = record.get("sourceIPAddress", "Unknown IP")
-    time       = record.get("eventTime", "Unknown time")
-    region     = record.get("awsRegion", "Unknown region")
-    account    = record.get("recipientAccountId", "Unknown account")
-
-    slack_payload = {
-        "blocks": [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": ":rotating_light: AWS Security Alert",
-                    "emoji": True
-                }
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f"*Event:*\n`{event_name}`"},
-                    {"type": "mrkdwn", "text": f"*User:*\n`{user}`"},
-                    {"type": "mrkdwn", "text": f"*Source IP:*\n`{source_ip}`"},
-                    {"type": "mrkdwn", "text": f"*Region:*\n`{region}`"},
-                    {"type": "mrkdwn", "text": f"*Account:*\n`{account}`"},
-                    {"type": "mrkdwn", "text": f"*Time:*\n`{time}`"}
-                ]
-            },
-            {
-                "type": "divider"
-            }
-        ]
-    }
-
-    data = json.dumps(slack_payload).encode('utf-8')
-    req = urllib.request.Request(webhook_url, data=data, headers={'Content-Type': 'application/json'})
-
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            print("Slack message sent:", response.status)
+        event_name = record.get("eventName", "unknown").lower()
+        event_time = record.get("eventTime")
+
+        if not isinstance(event_time, str) or "T" not in event_time:
+            event_time = datetime.utcnow().isoformat() + "Z"
+
+        user_identity = record.get("userIdentity", {})
+
+        index = f"security-alerts-{event_name}"
+        url = f"{OPENSEARCH_ENDPOINT}/{index}/_doc"
+
+        doc = {
+            "@timestamp": event_time,
+            "eventName": str(event_name),
+            "user": extract_user_arn(user_identity),
+            "sourceIP": str(record.get("sourceIPAddress", "")),
+            "awsRegion": str(record.get("awsRegion", "")),
+            "accountId": str(record.get("recipientAccountId", ""))
+        }
+
+        resp = requests.post(url, auth=awsauth, headers=HEADERS, data=json.dumps(doc), timeout=(5, 30))
+        resp.raise_for_status()
+        print(f"[Info] Indexed to OpenSearch: {event_name}")
+
     except Exception as e:
-        print("Error sending Slack message:", str(e))
+        print(f"[Warning] Failed to index record: {e}")
+        print(f"[Debug] Payload was: {json.dumps(record)[:500]}...")
+
+        # 실패한 레코드를 fallback 인덱스로 저장
+        try:
+            fallback_url = f"{OPENSEARCH_ENDPOINT}/security-alerts-failed/_doc"
+            fail_doc = {
+                "@timestamp": datetime.utcnow().isoformat() + "Z",
+                "error": str(e),
+                "eventName": str(record.get("eventName")),
+                "user": extract_user_arn(record.get("userIdentity", {})),
+                "userType": str(record.get("userIdentity", {}).get("type", "")),
+                "sourceIP": str(record.get("sourceIPAddress", "")),
+                "accountId": str(record.get("recipientAccountId", ""))
+            }
+            fallback_resp = requests.post(fallback_url, auth=awsauth, headers=HEADERS, data=json.dumps(fail_doc))
+            fallback_resp.raise_for_status()
+            print(f"[Info] Fallback indexed to security-alerts-failed")
+        except Exception as inner_e:
+            print(f"[Error] Failed to index fallback: {inner_e}")
 
 
 def lambda_handler(event, context):
     print("Received S3 PutObject event:", json.dumps(event, indent=2))
 
-    # 1) EventBridge detail 로부터 버킷과 키 추출
     detail = event.get("detail", {})
     bucket = detail.get("requestParameters", {}).get("bucketName")
-    key    = detail.get("requestParameters", {}).get("key")
+    key = detail.get("requestParameters", {}).get("key")
 
     if not bucket or not key:
-        print("Bucket or key missing in event detail")
+        print("Missing bucket/key in event")
         return {"statusCode": 400, "body": json.dumps({"error": "Invalid event"})}
 
-    # 2) S3에서 gzip된 CloudTrail 로그 파일 다운로드 및 파싱
-    s3  = boto3.client("s3")
+    s3 = boto3.client("s3")
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
     except Exception as e:
@@ -115,29 +112,13 @@ def lambda_handler(event, context):
         print(f"Error decompressing/parsing CloudTrail log: {e}")
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
-    # 3) 각 레코드별 필터링 및 Slack 알림
-    alert_events = {
-        "DeleteUser", "DeleteRole", "DeleteLoginProfile",
-        "StopLogging", "DeleteTrail",
-        "DeactivateMFADevice", "DeleteVirtualMFADevice",
-        "AuthorizeSecurityGroupIngress", "RevokeSecurityGroupIngress",
-        "AuthorizeSecurityGroupEgress", "RevokeSecurityGroupEgress",
-        "AttachUserPolicy", "DetachUserPolicy",
-        "PutUserPolicy", "DeleteUserPolicy",
-        "CreatePolicy", "DeletePolicy",
-        "RunInstances"
-    }
-
     for record in log_data.get("Records", []):
-        evt = record.get("eventName")
-        if evt in alert_events:
-            send_slack_alert(record)
-            try:
-                send_to_opensearch(record)
-            except Exception as e:
-                print(f"[Warning] OpenSearch indexing failed for {evt}: {e}")
+        if not record.get("eventName"):
+            print("[Skip] Missing eventName, skipping record.")
+            continue
+        send_to_opensearch(record)
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": "Processed S3 log and sent alerts."})
+        "body": json.dumps({"message": "Indexed all records to OpenSearch"})
     }

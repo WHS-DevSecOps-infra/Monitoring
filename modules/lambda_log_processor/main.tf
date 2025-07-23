@@ -73,10 +73,10 @@ resource "aws_lambda_function" "log_processor" {
 
   environment {
     variables = {
-      SLACK_WEBHOOK_URL = var.slack_webhook_url
-      OPENSEARCH_URL    = "https://${var.opensearch_endpoint}"
+      OPENSEARCH_URL = "https://${var.opensearch_endpoint}"
     }
   }
+
   lifecycle {
     ignore_changes = [vpc_config]
   }

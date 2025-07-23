@@ -18,12 +18,6 @@ variable "opensearch_endpoint" {
   description = "OpenSearch endpoint URL"
 }
 
-variable "slack_webhook_url" {
-  type        = string
-  description = "Slack Webhook URL"
-  sensitive   = true
-}
-
 variable "kms_key_arn" {
   type        = string
   description = "KMS key for decrypting Slack secret (if encrypted)"

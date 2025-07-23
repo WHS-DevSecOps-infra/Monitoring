@@ -26,3 +26,6 @@ ehthumbs.db             # Windows
 
 # VSCode 설정 (선택사항)
 .vscode/
+
+# OpenSearch alert 생성 시 생기는 임시 파일
+modules/opensearch/slack_response.json

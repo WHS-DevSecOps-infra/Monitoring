@@ -12,16 +12,19 @@ terraform {
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "tfstate-operation-lock"
+    profile        = "whs-sso-operation"
   }
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  profile = "whs-sso-operation"
 }
 
 provider "aws" {
-  alias  = "management"
-  region = var.aws_region
+  alias   = "management"
+  region  = var.aws_region
+  profile = "whs-sso-management"
 }
 
 data "aws_caller_identity" "current" {}
@@ -68,9 +71,7 @@ module "opensearch" {
   ebs_volume_size          = var.opensearch_ebs_size
   kms_key_arn              = module.s3.kms_key_arn
   lambda_role_arn          = module.lambda.lambda_function_role_arn
-  subnet_ids               = [module.network.private_subnet_id]
-  security_group_ids       = [module.network.security_group_id]
-  extra_security_group_ids = [module.network.opensearch_sg_id]
+  allowed_source_ips       = var.allowed_source_ips
 }
 
 # 4) Lambda 모듈: 로그 파싱 → OpenSearch + Slack 전송
@@ -80,11 +81,10 @@ module "lambda" {
   lambda_zip_path           = "../modules/lambda_log_processor/lambda_package.zip"
   opensearch_domain_arn     = module.opensearch.domain_arn
   opensearch_endpoint       = module.opensearch.endpoint
-  slack_webhook_url         = var.slack_webhook_url
   kms_key_arn               = module.s3.kms_key_arn
   bucket_arn                = module.s3.bucket_arn
   lambda_subnet_ids         = [module.network.private_subnet_id]
-  lambda_security_group_ids = [module.network.security_group_id]
+  lambda_security_group_ids = [module.network.lambda_sg_id]
 }
 
 # 5) EventBridge 모듈: S3 PutObject → Lambda 트리거
@@ -99,4 +99,11 @@ module "eventbridge" {
 module "network" {
   source     = "../modules/network_vpc"
   aws_region = var.aws_region
+}
+
+module "opensearch_initializer" {
+  source             = "../modules/opensearch_initializer"
+  opensearch_url     = "https://${module.opensearch.endpoint}"
+  slack_webhook_url  = var.slack_webhook_url
+  opensearch_domain_arn = module.opensearch.domain_arn
 }

@@ -33,18 +33,7 @@ variable "lambda_role_arn" {
   type        = string
 }
 
-variable "subnet_ids" {
-  description = "List of subnet IDs for the OpenSearch domain VPC configuration"
+variable "allowed_source_ips" {
+  description = "List of IPs allowed to access the OpenSearch domain"
   type        = list(string)
-}
-
-variable "security_group_ids" {
-  description = "List of security group IDs for the OpenSearch domain VPC configuration"
-  type        = list(string)
-}
-
-variable "extra_security_group_ids" {
-  type        = list(string)
-  description = "네트워크 모듈에서 생성된 Opensearch SG ID를 전달받기 위한 변수"
-  default     = []
 }

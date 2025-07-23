@@ -1,4 +1,4 @@
 variable "aws_region" {
-  description = "AWS region to use for VPC endpoints service names"
+  description = "AWS region (used for S3/KMS VPC endpoint service names)"
   type        = string
 }
