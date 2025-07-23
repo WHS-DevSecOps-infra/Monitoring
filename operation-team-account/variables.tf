@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "cloudtrail_bucket_name" {
   description = "S3 bucket name used by organization CloudTrail (from management account)"
   type        = string
-  default     = "whs-cloudtrail-logs"
+  default     = "whs-aws-logs"
 }
 
 variable "opensearch_domain_name" {
