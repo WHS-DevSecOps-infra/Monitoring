@@ -1,4 +1,5 @@
 data "aws_caller_identity" "current" {}
+data "aws_caller_identity" "prod" {}
 
 resource "aws_kms_key" "cloudtrail" {
   description             = "KMS key for encrypting CloudTrail logs in S3"
@@ -113,7 +114,35 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
             "s3:x-amz-acl" = "bucket-owner-full-control"
           }
         }
+      },
+
+      # prod 계정의 WAF가 로그 쓸 수 있도록 허용
+      {
+        Sid    = "AllowProdWAFWrite"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.prod_account_id}:root"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.logs.arn}/AWSLogs/${var.prod_account_id}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+
+      # prod 계정의 WAF가 ACL 조회 가능하도록 허용
+      {
+        Sid    = "AllowProdWAFAclCheck"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.prod_account_id}:root"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.logs.arn
       }
+
     ]
   })
 }
