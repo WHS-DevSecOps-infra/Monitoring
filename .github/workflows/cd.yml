@@ -110,5 +110,12 @@ jobs:
         working-directory: ${{ matrix.dir }} # matrix로 전달된 디렉토리에서 실행
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve # 사용자 승인 없이 자동 적용
+        env:
+          SECRET_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # Slack Webhook URL 환경 변수 설정
+        run: |
+          if [ "${{ matrix.dir }}" == "operation-team-account/scan/Lambda" ]; then
+            terraform apply -auto-approve -var="slack_webhook_url=$SECRET_SLACK_WEBHOOK_URL"
+          else
+            terraform apply -auto-approve # 사용자 승인 없이 자동 적용
+          fi
         working-directory: ${{ matrix.dir }}
