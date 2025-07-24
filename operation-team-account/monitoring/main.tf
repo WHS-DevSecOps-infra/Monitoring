@@ -16,12 +16,12 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.aws_region
+  region = var.aws_region
 }
 
 provider "aws" {
-  alias   = "management"
-  region  = var.aws_region
+  alias  = "management"
+  region = var.aws_region
 }
 
 data "aws_caller_identity" "management" {
@@ -29,8 +29,8 @@ data "aws_caller_identity" "management" {
 }
 
 provider "aws" {
-  alias   = "prod"
-  region  = var.aws_region
+  alias  = "prod"
+  region = var.aws_region
 }
 
 data "aws_caller_identity" "prod" {

@@ -17,15 +17,15 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.aws_region
+  region = var.aws_region
 }
 
 data "terraform_remote_state" "operation" {
   backend = "s3"
   config = {
-    bucket  = "cloudfence-operation-state"
-    key     = "monitoring/terraform.tfstate"
-    region  = "ap-northeast-2"
+    bucket = "cloudfence-operation-state"
+    key    = "monitoring/terraform.tfstate"
+    region = "ap-northeast-2"
   }
 }
 
