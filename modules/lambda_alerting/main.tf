@@ -18,7 +18,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      # CloudWatch 로그 권한
+      # CloudWatch 권한
       {
         Effect = "Allow",
         Action = [
