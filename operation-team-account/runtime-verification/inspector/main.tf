@@ -18,3 +18,7 @@ resource "aws_inspector2_enabler" "this" {
   account_ids    = [data.aws_caller_identity.current.account_id]
   resource_types = ["EC2"]
 }
+
+resource "aws_inspector2_delegated_admin_account" "prod_account" {
+  account_id = var.prod_account_id
+}

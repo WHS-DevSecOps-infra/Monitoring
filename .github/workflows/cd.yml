@@ -112,10 +112,23 @@ jobs:
       - name: Terraform Apply
         env:
           SECRET_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # Slack Webhook URL 환경 변수 설정
+          SECRET_PROD_ACCOUNT_ID: ${{ secrets.PROD_ACCOUNT_ID }}
+          SECRET_OPERATION_ACCOUNT_ID: ${{ secrets.OPERATION_ACCOUNT_ID }}
+
         run: |
-          if [ "${{ matrix.dir }}" == "operation-team-account/scan/Lambda" ]; then
-            terraform apply -auto-approve -var="slack_webhook_url=$SECRET_SLACK_WEBHOOK_URL"
-          else
-            terraform apply -auto-approve # 사용자 승인 없이 자동 적용
+          
+          APPLY_COMMAND="terraform apply -auto-approve"
+          if [ "${{ matrix.dir }}" == "management-team-account/inspector-delegation/organizations" ]; then
+            APPLY_COMMAND="$APPLY_COMMAND -var='operation_account_id=$SECRET_OPERATION_ACCOUNT_ID'"
           fi
+          
+          if [ "${{ matrix.dir }}" == "operation-team-account/scan/inspector" ]; then
+            APPLY_COMMAND="$APPLY_COMMAND -var='prod_account_id=$SECRET_PROD_ACCOUNT_ID'"
+          fi
+
+          if [ "${{ matrix.dir }}" == "operation-team-account/scan/lambda" ]; then
+            APPLY_COMMAND="$APPLY_COMMAND -var='slack_webhook_url=$SECRET_SLACK_WEBHOOK_URL'"
+          fi
+          echo "Running command: $APPLY_COMMAND"
+          eval $APPLY_COMMAND
         working-directory: ${{ matrix.dir }}
