@@ -12,19 +12,16 @@ terraform {
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "tfstate-operation-lock"
-    profile        = "whs-sso-operation"
   }
 }
 
 provider "aws" {
   region  = var.aws_region
-  profile = "whs-sso-operation"
 }
 
 provider "aws" {
   alias   = "management"
   region  = var.aws_region
-  profile = "whs-sso-management"
 }
 
 data "aws_caller_identity" "management" {
@@ -34,7 +31,6 @@ data "aws_caller_identity" "management" {
 provider "aws" {
   alias   = "prod"
   region  = var.aws_region
-  profile = "whs-sso-prod"
 }
 
 data "aws_caller_identity" "prod" {

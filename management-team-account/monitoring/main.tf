@@ -13,13 +13,11 @@ terraform {
     region         = "ap-northeast-2"
     encrypt        = true
     dynamodb_table = "tfstate-management-lock"
-    profile        = "whs-sso-management"
   }
 }
 
 provider "aws" {
   region  = var.aws_region
-  profile = "whs-sso-management"
 }
 
 data "terraform_remote_state" "operation" {
@@ -28,7 +26,6 @@ data "terraform_remote_state" "operation" {
     bucket  = "cloudfence-operation-state"
     key     = "monitoring/terraform.tfstate"
     region  = "ap-northeast-2"
-    profile = "whs-sso-operation"
   }
 }
 
