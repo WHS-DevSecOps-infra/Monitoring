@@ -23,16 +23,16 @@ data "terraform_remote_state" "iam" {
 }
 
 resource "aws_lambda_function" "inspector_slack_notification" {
-    function_name = "inspector_slack_notification"
-    role          = data.terraform_remote_state.iam.outputs.lambda_exec_role_arn
-    handler       = "index.lambda_handler"
-    runtime       = "python3.9"
+  function_name = "inspector_slack_notification"
+  role          = data.terraform_remote_state.iam.outputs.lambda_exec_role_arn
+  handler       = "index.lambda_handler"
+  runtime       = "python3.9"
 
-    environment {
-        variables = {
-            SLACK_WEBHOOK_URL = var.slack_webhook_url
-        }
+  environment {
+    variables = {
+      SLACK_WEBHOOK_URL = var.slack_webhook_url
     }
-    filename      = "lambda_function_payload.zip"
-    source_code_hash = filebase64sha256("lambda_function_payload.zip")
+  }
+  filename         = "lambda_function_payload.zip"
+  source_code_hash = filebase64sha256("lambda_function_payload.zip")
 }
