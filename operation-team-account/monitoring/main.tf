@@ -64,7 +64,7 @@ module "lambda_alerting" {
   aws_region          = var.aws_region
   function_name       = "opensearch-alerting-setup"
   handler             = "index.handler"
-  runtime             = "nodejs18.x"
+  runtime             = "nodejs22.x"
   zip_file_path       = "init-alerting.zip"
   domain_name         = var.opensearch_domain_name
   opensearch_endpoint = module.opensearch_domain.endpoint
@@ -77,7 +77,7 @@ module "lambda_delivery" {
   domain_name         = var.opensearch_domain_name
   function_name       = "s3-to-opensearch-delivery"
   handler             = "index.handler"
-  runtime             = "nodejs18.x"
+  runtime             = "nodejs22.x"
   zip_file_path       = "delivery.zip"
   bucket_name         = module.s3.bucket_name
   opensearch_endpoint = module.opensearch_domain.endpoint
