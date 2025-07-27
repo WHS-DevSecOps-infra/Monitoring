@@ -34,34 +34,22 @@ jobs:
           echo "Changed files:"
           echo "$FILES"
 
-          declare -A ROLE_MAP=(
+          declare -A ROLE_MAP=( 
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
-            ["prod-team-account"]="ROLE_ARN_PROD"
-            ["dev-team-account"]="ROLE_ARN_DEV"
-            ["security-team-account"]="ROLE_ARN_SECURITY"
-            ["stage-team-account"]="ROLE_ARN_STAGE"
             ["management-team-account"]="ROLE_ARN_MANAGEMENT"
           )
 
           TMP_FILE=$(mktemp)
-
           for FILE in $FILES; do
             DIR=$(dirname "$FILE")
             TOP_DIR=$(echo $DIR | cut -d/ -f1)
             ROLE_KEY="${ROLE_MAP[$TOP_DIR]}"
 
             if [ -n "$ROLE_KEY" ]; then
-              if [ "$DIR" == "$TOP_DIR" ]; then
-                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
-                if [ "$TF_COUNT" -gt 0 ]; then
-                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
-                fi
-              else
-                TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
-                if [ "$TF_COUNT" -gt 0 ]; then
-                  echo "$DIR|$ROLE_KEY" >> $TMP_FILE
-                fi
+              TF_COUNT=$(find "$DIR" -maxdepth 1 -name '*.tf' | wc -l)
+              if [ "$TF_COUNT" -gt 0 ]; then
+                echo "$DIR|$ROLE_KEY" >> $TMP_FILE
               fi
             fi
           done
@@ -84,10 +72,8 @@ jobs:
           done <<< "$UNIQUE_LINES"
 
           MATRIX_JSON="$MATRIX_JSON]"
-
           echo "Final JSON matrix:"
           echo "$MATRIX_JSON"
-
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   terraform-ci:
@@ -104,6 +90,7 @@ jobs:
       INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       INFRACOST_TERRAFORM_CLI_WRAPPER: false
+      TF_VAR_slack_webhook_url: ${{ secrets.TF_VAR_slack_webhook_url }}
 
     steps:
       - name: Checkout Code
@@ -152,28 +139,40 @@ jobs:
           PLAN_TXT=plan.txt
           PLAN_JSON=plan.json
 
-          # Run terraform plan
-          terraform plan -no-color -out=$PLAN_FILE > /dev/null 2> plan_error.txt || echo "PLAN_FAILED=true" >> $GITHUB_ENV
+          if terraform plan -no-color -out=$PLAN_FILE > /dev/null 2> plan_error.txt; then
+            echo "PLAN_FAILED=false" >> $GITHUB_ENV
+            terraform show -no-color $PLAN_FILE > $PLAN_TXT
+            terraform show -json $PLAN_FILE > $PLAN_JSON || true
+          else
+            echo "PLAN_FAILED=true" >> $GITHUB_ENV
+            echo "Plan failed" > $PLAN_TXT
+            echo "{}" > $PLAN_JSON
+          fi
 
-          # Show plan text output
-          terraform show -no-color $PLAN_FILE > $PLAN_TXT 2>/dev/null || echo "Plan failed" > $PLAN_TXT
+          # 디버깅용 출력
+          echo "::group::Raw terraform show output"
+          cat $PLAN_TXT || echo "(empty)"
+          echo "::endgroup::"
 
-          # Remove ANSI color codes
-          cat $PLAN_TXT | \
-            sed 's/`/\\`/g' | \
-            tr -d '\r' | \
-            sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" \
-            > cleaned_plan.txt
+          sed 's/`/\\`/g' $PLAN_TXT | tr -d '\r' | sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" > cleaned_plan.txt
 
           PLAN_CONTENT=$(cat cleaned_plan.txt)
+          PLAN_ERROR=$(cat plan_error.txt || echo "No error captured")
 
-          # Save JSON plan for infracost
-          terraform show -json $PLAN_FILE > $PLAN_JSON || true
+          if [ -z "$PLAN_CONTENT" ]; then
+            PLAN_CONTENT="(no changes or output empty)"
+          fi
 
-          # Output plan content for PR comment
+          if [ -z "$PLAN_ERROR" ]; then
+            PLAN_ERROR="(no errors)"
+          fi
+
           {
             echo "PLAN_CONTENT<<EOF"
             echo "$PLAN_CONTENT"
+            echo "EOF"
+            echo "PLAN_ERROR<<EOF"
+            echo "$PLAN_ERROR"
             echo "EOF"
           } >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.dir }}
@@ -196,6 +195,11 @@ jobs:
             ### Plan Output
             ```hcl
             ${{ steps.plan.outputs.PLAN_CONTENT }}
+            ```
+
+            ### Plan Error (if any)
+            ```
+            ${{ steps.plan.outputs.PLAN_ERROR }}
             ```
 
       - name: Setup Infracost
