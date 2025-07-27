@@ -1,3 +1,4 @@
+# management account
 resource "aws_cloudwatch_event_rule" "s3_object_created" {
   name        = "cloudtrail-s3-event-rule"
   description = "Trigger Lambda on CloudTrail S3 delivery objects"
