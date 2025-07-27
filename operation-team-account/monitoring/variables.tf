@@ -8,12 +8,14 @@ variable "cloudtrail_bucket_name" {
   description = "S3 bucket name used by organization CloudTrail"
   type        = string
   default     = "whs-aws-logs"
+  sensitive   = true
 }
 
 variable "opensearch_domain_name" {
   description = "OpenSearch domain name"
   type        = string
   default     = "whs-domain"
+  sensitive   = true
 }
 
 variable "opensearch_engine_version" {
@@ -50,10 +52,12 @@ variable "kms_alias_name" {
   description = "KMS key alias for CloudTrail logs"
   type        = string
   default     = "alias/cloudtrail-logs"
+  sensitive   = true
 }
 
 variable "allowed_source_ips" {
   description = "List of IPs allowed to access the OpenSearch domain"
   type        = list(string)
   default     = []
+  sensitive   = true
 }

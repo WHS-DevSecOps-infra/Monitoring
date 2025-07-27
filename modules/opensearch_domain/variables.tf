@@ -1,5 +1,6 @@
 variable "domain_name" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "engine_version" {
@@ -19,7 +20,8 @@ variable "ebs_size" {
 }
 
 variable "allowed_source_ips" {
-  type = list(string)
+  type      = list(string)
+  sensitive = true
 }
 
 variable "aws_region" {
