@@ -1,4 +1,3 @@
-
 terraform {
   required_providers {
     aws = {
@@ -23,6 +22,8 @@ data "terraform_remote_state" "iam" {
   }
 }
 
+# 이 Lambda 함수는 단순 알림 기능만 수행하므로 X-Ray 옵션을 제외
+#tfsec:ignore:aws-lambda-enable-tracing
 resource "aws_lambda_function" "inspector_slack_notification" {
   function_name = "inspector_slack_notification"
   role          = data.terraform_remote_state.iam.outputs.lambda_exec_role_arn
