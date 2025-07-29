@@ -12,14 +12,6 @@ provider "aws" {
   region = "ap-northeast-2"
 }
 
-provider "aws" {
-  alias  = "prod"
-  region = "ap-northeast-2"
-}
-
-data "aws_caller_identity" "prod" {
-  provider = aws.prod
-}
 
 data "aws_caller_identity" "current" {}
 
@@ -29,5 +21,5 @@ resource "aws_inspector2_enabler" "this" {
 }
 
 resource "aws_inspector2_delegated_admin_account" "prod_account" {
-  account_id = data.aws_caller_identity.prod.account_id
+  account_id = var.prod_account_id
 }
