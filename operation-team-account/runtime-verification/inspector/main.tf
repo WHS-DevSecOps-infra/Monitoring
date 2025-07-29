@@ -29,5 +29,5 @@ resource "aws_inspector2_enabler" "this" {
 }
 
 resource "aws_inspector2_delegated_admin_account" "prod_account" {
-  account_id = var.prod_account_id
+  account_id = data.aws_caller_identity.prod.account_id
 }
