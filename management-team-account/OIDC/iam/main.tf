@@ -24,15 +24,16 @@ resource "aws_iam_role_policy" "custom_inline_policy" {
     "Version" : "2012-10-17",
     "Statement" : [
       {
-        "Sid" : "VisualEditor0",
-        "Effect" : "Allow",
         "Action" : [
           "s3:*",
           "dynamoDB:*",
           "kms:*",
-          "iam:*"
+          "iam:*",
+          "cloudtrail:*"
         ],
-        "Resource" : "*"
+        "Effect" : "Allow",
+        "Resource" : "*",
+        "Sid" : "VisualEditor0"
       }
     ]
   })

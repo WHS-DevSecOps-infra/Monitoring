@@ -34,81 +34,87 @@ resource "aws_iam_role_policy" "custom_inline_policy" {
     "Version" : "2012-10-17",
     "Statement" : [
       {
-        "Effect" : "Allow",
         "Action" : [
           "s3:ListBucket",
           "s3:GetObject",
           "s3:PutObject",
           "s3:*",
-          "sts:AssumeRole"
+          "sts:AssumeRole",
+          "events:*",
+          "es:*",
+          "lambda:*",
+          "inspector2:*"
         ],
-        "Resource" : ["*"]
+        "Effect" : "Allow",
+        "Resource" : [
+          "*"
+        ]
       },
       {
-        "Effect" : "Allow",
         "Action" : [
           "cloudwatch:*",
           "cloudtrail:*"
         ],
+        "Effect" : "Allow",
         "Resource" : "*"
       },
       {
-        "Sid" : "KMSAccess",
-        "Effect" : "Allow",
         "Action" : [
           "kms:*"
         ],
-        "Resource" : "*"
+        "Effect" : "Allow",
+        "Resource" : "*",
+        "Sid" : "KMSAccess"
       },
       {
-        "Sid" : "DynamoDBAccess",
-        "Effect" : "Allow",
         "Action" : [
           "dynamodb:*"
         ],
-        "Resource" : "*"
+        "Effect" : "Allow",
+        "Resource" : "*",
+        "Sid" : "DynamoDBAccess"
       },
       {
-        "Sid" : "TerraformBackendOperationState",
-        "Effect" : "Allow",
         "Action" : [
           "s3:GetObject",
           "s3:PutObject",
           "s3:ListBucket"
         ],
+        "Effect" : "Allow",
         "Resource" : [
           "arn:aws:s3:::cloudfence-operation-state",
           "arn:aws:s3:::cloudfence-operation-state/*"
-        ]
+        ],
+        "Sid" : "TerraformBackendOperationState"
       },
       {
-        "Sid" : "TerraformDynamoDBLock",
-        "Effect" : "Allow",
         "Action" : [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ],
-        "Resource" : "arn:aws:dynamodb:*:*:table/s3-operation-lock"
+        "Effect" : "Allow",
+        "Resource" : "arn:aws:dynamodb:*:*:table/s3-operation-lock",
+        "Sid" : "TerraformDynamoDBLock"
       },
       {
-        "Sid" : "KMSAccessForState",
-        "Effect" : "Allow",
         "Action" : [
           "kms:Decrypt",
           "kms:Encrypt",
           "kms:GenerateDataKey"
         ],
-        "Resource" : "arn:aws:kms:ap-northeast-2:502676416967:key/9901c9d1-8b00-47a9-bd7a-53cfc1f70d25"
+        "Effect" : "Allow",
+        "Resource" : "arn:aws:kms:ap-northeast-2:502676416967:key/9901c9d1-8b00-47a9-bd7a-53cfc1f70d25",
+        "Sid" : "KMSAccessForState"
       },
       {
-        "Sid" : "ECRAndIAMManagement",
-        "Effect" : "Allow",
         "Action" : [
           "ecr:*",
           "iam:CreateServiceLinkedRole"
         ],
-        "Resource" : "*"
+        "Effect" : "Allow",
+        "Resource" : "*",
+        "Sid" : "ECRAndIAMManagement"
       }
     ]
     }
