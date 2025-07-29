@@ -34,7 +34,7 @@ jobs:
           echo "Changed files:"
           echo "$FILES"
 
-          declare -A ROLE_MAP=( 
+          declare -A ROLE_MAP=(
             ["operation-team-account"]="ROLE_ARN_OPERATION"
             ["identity-team-account"]="ROLE_ARN_IDENTITY"
             ["management-team-account"]="ROLE_ARN_MANAGEMENT"
@@ -116,6 +116,9 @@ jobs:
 
       - name: Run tfsec (fail on HIGH+)
         run: tfsec --minimum-severity HIGH --no-color ${{ matrix.dir }}
+
+      - name: Run tfsec (all severities) and save JSON
+        run: tfsec --format json --out tfsec_results.json ${{ matrix.dir }}
 
       - name: Terraform Init
         run: terraform init
