@@ -110,5 +110,4 @@ jobs:
           TF_VAR_slack_webhook_url: ${{ secrets.TF_VAR_slack_webhook_url }}
           TF_VAR_allowed_source_ips: ${{ secrets.TF_VAR_allowed_source_ips }}
           TF_VAR_operation_account_id: ${{ secrets.TF_VAR_operation_account_id }}
-          TF_VAR_prod_account_id: ${{ secrets.TF_VAR_prod_account_id }}
-          
+          TF_VAR_management_account_id: ${{ secrets.TF_VAR_management_account_id }}
