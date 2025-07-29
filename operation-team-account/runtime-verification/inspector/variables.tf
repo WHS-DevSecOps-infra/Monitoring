@@ -1,5 +1,5 @@
-variable "prod_account_id" {
-  description = "prod account"
+variable "management_account_id" {
+  description = "management account"
   type        = string
   sensitive   = true
 }

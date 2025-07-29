@@ -20,6 +20,6 @@ resource "aws_inspector2_enabler" "this" {
   resource_types = ["EC2"]
 }
 
-resource "aws_inspector2_delegated_admin_account" "prod_account" {
-  account_id = var.prod_account_id
+resource "aws_inspector2_delegated_admin_account" "management_account" {
+  account_id = var.management_account_id
 }
